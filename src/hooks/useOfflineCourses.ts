@@ -1,23 +1,31 @@
-'use client';
-import { useEffect, useState } from 'react';
-import { getCachedCourses, deleteCachedCourse } from '@/lib/db/indexeddb';
-import type { Course } from '@/types';
+'use client'
+
+import { useEffect, useState } from 'react'
+import { getOfflineCourses, saveOfflineCourse, deleteOfflineCourse } from '@/lib/db/indexeddb'
+import type { Course } from '@/types'
 
 export function useOfflineCourses() {
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [offlineCourses, setOfflineCourses] = useState<Course[]>([])
+  const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    getCachedCourses().then((data) => {
-      setCourses(data);
-      setLoading(false);
-    });
-  }, []);
+  useEffect(() => { load() }, [])
 
-  async function removeCourse(id: string) {
-    await deleteCachedCourse(id);
-    setCourses((prev) => prev.filter((c) => c.id !== id));
+  async function load() {
+    setLoading(true)
+    const courses = await getOfflineCourses()
+    setOfflineCourses(courses)
+    setLoading(false)
   }
 
-  return { courses, loading, removeCourse };
+  async function saveForOffline(course: Course) {
+    await saveOfflineCourse(course)
+    await load()
+  }
+
+  async function removeOffline(id: string) {
+    await deleteOfflineCourse(id)
+    await load()
+  }
+
+  return { offlineCourses, loading, saveForOffline, removeOffline }
 }

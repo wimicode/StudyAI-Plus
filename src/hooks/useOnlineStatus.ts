@@ -1,24 +1,21 @@
-'use client';
-import { useEffect, useState } from 'react';
-import { syncPendingScores } from '@/lib/db/sync';
+'use client'
 
-export function useOnlineStatus(): boolean {
-  const [isOnline, setIsOnline] = useState(typeof window !== 'undefined' ? navigator.onLine : true);
+import { useEffect, useState } from 'react'
+
+export function useOnlineStatus() {
+  const [isOnline, setIsOnline] = useState(true)
 
   useEffect(() => {
-    const onOnline = () => {
-      setIsOnline(true);
-      syncPendingScores().catch(console.error);
-    };
-    const onOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', onOnline);
-    window.addEventListener('offline', onOffline);
+    setIsOnline(navigator.onLine)
+    const onOnline = () => setIsOnline(true)
+    const onOffline = () => setIsOnline(false)
+    window.addEventListener('online', onOnline)
+    window.addEventListener('offline', onOffline)
     return () => {
-      window.removeEventListener('online', onOnline);
-      window.removeEventListener('offline', onOffline);
-    };
-  }, []);
+      window.removeEventListener('online', onOnline)
+      window.removeEventListener('offline', onOffline)
+    }
+  }, [])
 
-  return isOnline;
+  return isOnline
 }

@@ -1,27 +1,19 @@
-import { getUnsyncedScores, markScoreSynced } from './indexeddb'
+import { getPendingScores, markScoreSynced } from './indexeddb'
+import { createClient } from '@/lib/supabase/client'
 
-export async function syncPendingScores(): Promise<{ synced: number; failed: number }> {
-  const unsynced = await getUnsyncedScores()
+export async function syncPendingScores(): Promise<number> {
+  const supabase = createClient()
+  const pending = await getPendingScores()
   let synced = 0
-  let failed = 0
 
-  for (const score of unsynced) {
-    try {
-      const res = await fetch('/api/scores/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(score),
-      })
-      if (res.ok) {
-        await markScoreSynced(score.id)
-        synced++
-      } else {
-        failed++
-      }
-    } catch {
-      failed++
+  for (const score of pending) {
+    const { _pendingSync, ...data } = score
+    const { error } = await supabase.from('quiz_scores').upsert(data)
+    if (!error) {
+      await markScoreSynced(score.id)
+      synced++
     }
   }
 
-  return { synced, failed }
+  return synced
 }

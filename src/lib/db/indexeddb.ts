@@ -1,69 +1,56 @@
-import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
+import { openDB, DBSchema, IDBPDatabase } from 'idb'
 import type { Course, QuizScore } from '@/types'
 
 interface StudyAIDB extends DBSchema {
-  courses: {
-    key: string
-    value: Course
-    indexes: { by_subject: string }
-  }
-  quiz_scores: {
-    key: string
-    value: QuizScore
-    indexes: { by_course: string; unsynced: number }
-  }
+  courses: { key: string; value: Course & { _savedAt: number } }
+  quiz_scores: { key: string; value: QuizScore & { _pendingSync: boolean } }
 }
 
-let dbPromise: Promise<IDBPDatabase<StudyAIDB>> | null = null
+let db: IDBPDatabase<StudyAIDB> | null = null
 
-function getDB() {
-  if (!dbPromise) {
-    dbPromise = openDB<StudyAIDB>('studyai-plus', 1, {
-      upgrade(db) {
-        const coursesStore = db.createObjectStore('courses', { keyPath: 'id' })
-        coursesStore.createIndex('by_subject', 'subject')
-
-        const scoresStore = db.createObjectStore('quiz_scores', { keyPath: 'id' })
-        scoresStore.createIndex('by_course', 'course_id')
-        scoresStore.createIndex('unsynced', 'synced')
-      },
-    })
-  }
-  return dbPromise
+export async function getDB(): Promise<IDBPDatabase<StudyAIDB>> {
+  if (db) return db
+  db = await openDB<StudyAIDB>('studyai-plus', 1, {
+    upgrade(database) {
+      if (!database.objectStoreNames.contains('courses')) {
+        database.createObjectStore('courses', { keyPath: 'id' })
+      }
+      if (!database.objectStoreNames.contains('quiz_scores')) {
+        database.createObjectStore('quiz_scores', { keyPath: 'id' })
+      }
+    },
+  })
+  return db
 }
 
-export async function saveOfflineCourse(course: Course) {
-  const db = await getDB()
-  await db.put('courses', course)
+export async function saveOfflineCourse(course: Course): Promise<void> {
+  const database = await getDB()
+  await database.put('courses', { ...course, _savedAt: Date.now() })
 }
 
-export async function getOfflineCourse(id: string): Promise<Course | undefined> {
-  const db = await getDB()
-  return db.get('courses', id)
+export async function getOfflineCourses(): Promise<Course[]> {
+  const database = await getDB()
+  return database.getAll('courses')
 }
 
-export async function getAllOfflineCourses(): Promise<Course[]> {
-  const db = await getDB()
-  return db.getAll('courses')
+export async function deleteOfflineCourse(id: string): Promise<void> {
+  const database = await getDB()
+  await database.delete('courses', id)
 }
 
-export async function deleteOfflineCourse(id: string) {
-  const db = await getDB()
-  await db.delete('courses', id)
+export async function savePendingScore(score: QuizScore): Promise<void> {
+  const database = await getDB()
+  await database.put('quiz_scores', { ...score, _pendingSync: true })
 }
 
-export async function saveOfflineScore(score: QuizScore) {
-  const db = await getDB()
-  await db.put('quiz_scores', { ...score, synced: false })
+export async function getPendingScores(): Promise<(QuizScore & { _pendingSync: boolean })[]> {
+  const database = await getDB()
+  const all = await database.getAll('quiz_scores')
+  return all.filter((s) => s._pendingSync)
 }
 
-export async function getUnsyncedScores(): Promise<QuizScore[]> {
-  const db = await getDB()
-  return db.getAllFromIndex('quiz_scores', 'unsynced', 0)
-}
-
-export async function markScoreSynced(id: string) {
-  const db = await getDB()
-  const score = await db.get('quiz_scores', id)
-  if (score) await db.put('quiz_scores', { ...score, synced: true })
+export async function markScoreSynced(id: string): Promise<void> {
+  const database = await getDB()
+  const score = await database.get('quiz_scores', id)
+  if (score) await database.put('quiz_scores', { ...score, _pendingSync: false })
 }

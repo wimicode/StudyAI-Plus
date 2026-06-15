@@ -1,26 +1,21 @@
-// Extrait l'ID YouTube depuis différents formats d'URL
-export function extractYoutubeId(url: string): string | null {
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=)([\w-]{11})/,
-    /(?:youtu\.be\/)([\w-]{11})/,
-    /(?:youtube\.com\/embed\/)([\w-]{11})/,
-    /(?:youtube\.com\/shorts\/)([\w-]{11})/,
-  ]
-  for (const pattern of patterns) {
-    const match = url.match(pattern)
-    if (match) return match[1]
+/**
+ * Extracts YouTube video ID from any YouTube URL format.
+ */
+export function parseYoutubeUrl(url: string): string | null {
+  try {
+    const u = new URL(url)
+    if (u.hostname.includes('youtu.be')) return u.pathname.slice(1)
+    if (u.hostname.includes('youtube.com')) return u.searchParams.get('v')
+    return null
+  } catch {
+    return null
   }
-  return null
 }
 
-export function buildYoutubeThumbnail(videoId: string): string {
+export function getYoutubeThumbnail(videoId: string): string {
   return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
 }
 
-export function buildYoutubeEmbedUrl(videoId: string): string {
+export function getYoutubeEmbedUrl(videoId: string): string {
   return `https://www.youtube.com/embed/${videoId}`
-}
-
-export function isYoutubeUrl(url: string): boolean {
-  return /youtube\.com|youtu\.be/.test(url)
 }

@@ -1,19 +1,32 @@
+/** @type {import('next').NextConfig} */
 const withPWA = require('next-pwa')({
   dest: 'public',
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
-  sw: '/sw.js',
+  runtimeCaching: [
+    {
+      urlPattern: /^https:.*\.supabase\.co\/storage\/v1\/object\/public\/.*/,
+      handler: 'CacheFirst',
+      options: {
+        cacheName: 'supabase-storage',
+        expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 * 7 },
+      },
+    },
+    {
+      urlPattern: /^\/api\/.*/,
+      handler: 'NetworkFirst',
+      options: { cacheName: 'api-cache', networkTimeoutSeconds: 10 },
+    },
+  ],
 });
 
-/** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {},
-  images: {
-    remotePatterns: [
-      { protocol: 'https', hostname: '**.supabase.co' },
-      { protocol: 'https', hostname: 'img.youtube.com' },
-    ],
+  reactStrictMode: true,
+  images: { remotePatterns: [{ protocol: 'https', hostname: '*.supabase.co' }] },
+  webpack: (config) => {
+    config.resolve.alias.canvas = false;
+    return config;
   },
 };
 

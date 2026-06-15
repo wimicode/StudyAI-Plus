@@ -1,6 +1,6 @@
 -- ============================================================
--- STUDYAI-PLUS – Supabase Database Migration v2
--- Run this in the Supabase SQL Editor to set up the schema.
+-- STUDYAI PLUS v2 – Supabase Database Migration
+-- Colle ce contenu dans SQL Editor > Run
 -- ============================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -13,29 +13,21 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   email       TEXT NOT NULL,
   full_name   TEXT,
   avatar_url  TEXT,
+  language    TEXT NOT NULL DEFAULT 'fr',
+  level       TEXT NOT NULL DEFAULT 'lycee'
+                CHECK (level IN ('college','lycee','bac','superieur','autre')),
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
-
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can read their own profile"
-  ON public.profiles FOR SELECT
-  USING (auth.uid() = id);
-
-CREATE POLICY "Users can update their own profile"
-  ON public.profiles FOR UPDATE
-  USING (auth.uid() = id);
+CREATE POLICY "read own profile"   ON public.profiles FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
   INSERT INTO public.profiles (id, email, full_name, avatar_url)
-  VALUES (
-    NEW.id,
-    NEW.email,
-    NEW.raw_user_meta_data->>'full_name',
-    NEW.raw_user_meta_data->>'avatar_url'
-  );
+  VALUES (NEW.id, NEW.email, NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'avatar_url')
+  ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -46,15 +38,32 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- ============================================================
+-- FOLDERS (arborescence de dossiers)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.folders (
+  id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  parent_id  UUID REFERENCES public.folders(id) ON DELETE CASCADE,
+  name       TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_folders_user_id   ON public.folders(user_id);
+CREATE INDEX IF NOT EXISTS idx_folders_parent_id ON public.folders(parent_id);
+ALTER TABLE public.folders ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "CRUD own folders" ON public.folders FOR ALL
+  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- ============================================================
 -- COURSES
 -- ============================================================
 CREATE TABLE IF NOT EXISTS public.courses (
   id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id        UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  folder_id      UUID REFERENCES public.folders(id) ON DELETE SET NULL,
   title          TEXT NOT NULL,
   subject        TEXT NOT NULL,
-  level          TEXT DEFAULT 'high_school',  -- primary / middle / high_school / university
-  language       TEXT DEFAULT 'fr',
+  language       TEXT NOT NULL DEFAULT 'fr',
+  level          TEXT NOT NULL DEFAULT 'lycee',
   summary        TEXT,
   glossary       JSONB,
   key_concepts   JSONB,
@@ -63,57 +72,61 @@ CREATE TABLE IF NOT EXISTS public.courses (
   created_at     TIMESTAMPTZ DEFAULT NOW(),
   updated_at     TIMESTAMPTZ DEFAULT NOW()
 );
-
-CREATE INDEX IF NOT EXISTS idx_courses_user_id ON public.courses(user_id);
-
+CREATE INDEX IF NOT EXISTS idx_courses_user_id   ON public.courses(user_id);
+CREATE INDEX IF NOT EXISTS idx_courses_folder_id ON public.courses(folder_id);
 ALTER TABLE public.courses ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can CRUD their own courses"
-  ON public.courses FOR ALL
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "CRUD own courses" ON public.courses FOR ALL
+  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 CREATE OR REPLACE FUNCTION update_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER courses_updated_at
-  BEFORE UPDATE ON public.courses
+RETURNS TRIGGER AS $$ BEGIN NEW.updated_at = NOW(); RETURN NEW; END; $$ LANGUAGE plpgsql;
+CREATE TRIGGER courses_updated_at BEFORE UPDATE ON public.courses
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- ============================================================
--- SOURCES (NOUVEAU - multi-types)
--- Une source = un contenu brut associé à un cours
--- Types : pdf | youtube | drive | text | image
+-- SOURCES (multi-formats : pdf, youtube, text, drive, image)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS public.sources (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id         UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  course_id       UUID REFERENCES public.courses(id) ON DELETE CASCADE,
-  type            TEXT NOT NULL CHECK (type IN ('pdf', 'youtube', 'drive', 'text', 'image')),
+  course_id       UUID NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
+  type            TEXT NOT NULL CHECK (type IN ('pdf','youtube','text','drive','image')),
   title           TEXT,
-  raw_url         TEXT,         -- URL du fichier Supabase Storage, ou lien YouTube/Drive
-  storage_path    TEXT,         -- chemin dans Supabase Storage (pour PDF/images)
-  content_text    TEXT,         -- texte extrait ou collé directement
-  content_preview TEXT,         -- extrait court pour affichage
-  status          TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'done', 'error')),
+  raw_url         TEXT,         -- URL Supabase Storage (pdf/image) ou lien externe (youtube/drive)
+  raw_text        TEXT,         -- Texte brut extrait ou collé
+  content_preview TEXT,         -- Premier extrait (300 chars) pour l'UI
+  status          TEXT NOT NULL DEFAULT 'pending'
+                  CHECK (status IN ('pending','processing','processed','error')),
   error_message   TEXT,
   created_at      TIMESTAMPTZ DEFAULT NOW()
 );
-
-CREATE INDEX IF NOT EXISTS idx_sources_user_id   ON public.sources(user_id);
 CREATE INDEX IF NOT EXISTS idx_sources_course_id ON public.sources(course_id);
-
+CREATE INDEX IF NOT EXISTS idx_sources_user_id   ON public.sources(user_id);
 ALTER TABLE public.sources ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "CRUD own sources" ON public.sources FOR ALL
+  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can CRUD their own sources"
-  ON public.sources FOR ALL
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+-- ============================================================
+-- SHEETS (fiches personnalisées par blocs)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.sheets (
+  id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  course_id  UUID REFERENCES public.courses(id) ON DELETE SET NULL,
+  folder_id  UUID REFERENCES public.folders(id) ON DELETE SET NULL,
+  title      TEXT NOT NULL DEFAULT 'Nouvelle fiche',
+  color      TEXT NOT NULL DEFAULT '#fde68a',
+  blocks     JSONB NOT NULL DEFAULT '[]',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_sheets_user_id   ON public.sheets(user_id);
+CREATE INDEX IF NOT EXISTS idx_sheets_course_id ON public.sheets(course_id);
+ALTER TABLE public.sheets ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "CRUD own sheets" ON public.sheets FOR ALL
+  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE TRIGGER sheets_updated_at BEFORE UPDATE ON public.sheets
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- ============================================================
 -- EXAMS
@@ -123,19 +136,14 @@ CREATE TABLE IF NOT EXISTS public.exams (
   user_id          UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   subject          TEXT NOT NULL,
   exam_date        DATE NOT NULL,
-  duration_minutes INTEGER,
+  duration_minutes INTEGER DEFAULT 60,
   notes            TEXT,
   created_at       TIMESTAMPTZ DEFAULT NOW()
 );
-
 CREATE INDEX IF NOT EXISTS idx_exams_user_id ON public.exams(user_id);
-
 ALTER TABLE public.exams ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can CRUD their own exams"
-  ON public.exams FOR ALL
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "CRUD own exams" ON public.exams FOR ALL
+  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 -- ============================================================
 -- STUDY PLANS
@@ -149,15 +157,10 @@ CREATE TABLE IF NOT EXISTS public.study_plans (
   rest_days    JSONB NOT NULL DEFAULT '["saturday","sunday"]',
   generated_at TIMESTAMPTZ DEFAULT NOW()
 );
-
 CREATE INDEX IF NOT EXISTS idx_study_plans_user_id ON public.study_plans(user_id);
-
 ALTER TABLE public.study_plans ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can CRUD their own study plans"
-  ON public.study_plans FOR ALL
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "CRUD own study plans" ON public.study_plans FOR ALL
+  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 -- ============================================================
 -- QUIZ SCORES
@@ -166,39 +169,30 @@ CREATE TABLE IF NOT EXISTS public.quiz_scores (
   id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id    UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   course_id  UUID REFERENCES public.courses(id) ON DELETE CASCADE,
-  mode       TEXT NOT NULL CHECK (mode IN ('flashcard', 'quiz', 'exam')),
+  mode       TEXT NOT NULL CHECK (mode IN ('flashcard','quiz','exam')),
   score      INTEGER NOT NULL,
   total      INTEGER NOT NULL,
   feedback   TEXT,
   synced     BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
-
 CREATE INDEX IF NOT EXISTS idx_quiz_scores_user_id  ON public.quiz_scores(user_id);
 CREATE INDEX IF NOT EXISTS idx_quiz_scores_course_id ON public.quiz_scores(course_id);
-
 ALTER TABLE public.quiz_scores ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can CRUD their own scores"
-  ON public.quiz_scores FOR ALL
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "CRUD own scores" ON public.quiz_scores FOR ALL
+  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 -- ============================================================
--- STORAGE BUCKETS
--- Créer dans Supabase Dashboard > Storage > New bucket
--- Nom : studyai-files | Public : oui
+-- STORAGE POLICIES (à exécuter après création du bucket)
+-- Crée le bucket 'course-pdfs' dans Storage > New Bucket (public)
+-- puis colle les lignes ci-dessous :
 -- ============================================================
-
--- Policies Storage (coller après avoir créé le bucket) :
--- CREATE POLICY "Users can upload their own files"
+-- CREATE POLICY "upload own files"
 --   ON storage.objects FOR INSERT
---   WITH CHECK (bucket_id = 'studyai-files' AND auth.uid()::text = (storage.foldername(name))[1]);
-
--- CREATE POLICY "Files are publicly readable"
+--   WITH CHECK (bucket_id = 'course-pdfs' AND auth.uid()::text = (storage.foldername(name))[1]);
+-- CREATE POLICY "public read files"
 --   ON storage.objects FOR SELECT
---   USING (bucket_id = 'studyai-files');
-
--- CREATE POLICY "Users can delete their own files"
+--   USING (bucket_id = 'course-pdfs');
+-- CREATE POLICY "delete own files"
 --   ON storage.objects FOR DELETE
---   USING (bucket_id = 'studyai-files' AND auth.uid()::text = (storage.foldername(name))[1]);
+--   USING (bucket_id = 'course-pdfs' AND auth.uid()::text = (storage.foldername(name))[1]);

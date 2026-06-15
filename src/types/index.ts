@@ -1,121 +1,116 @@
 // ============================================================
-// STUDYAI-PLUS – TypeScript Types
+// Types TypeScript — StudyAI-Plus
 // ============================================================
 
-export type SourceType = 'pdf' | 'youtube' | 'drive' | 'text' | 'image';
-export type SourceStatus = 'pending' | 'processing' | 'processed' | 'error';
-export type CourseLevel = 'college' | 'lycee' | 'bac' | 'superieur';
-export type QuizMode = 'flashcard' | 'quiz' | 'exam';
-
-export interface Profile {
-  id: string;
-  email: string;
-  full_name: string | null;
-  avatar_url: string | null;
-  language: string;
-  level: CourseLevel;
-  created_at: string;
-}
+export type SourceType = 'pdf' | 'youtube' | 'drive' | 'text' | 'image'
+export type SourceStatus = 'pending' | 'processing' | 'done' | 'error'
 
 export interface Source {
-  id: string;
-  user_id: string;
-  course_id: string | null;
-  type: SourceType;
-  title: string | null;
-  raw_url: string | null;
-  pdf_path: string | null;
-  pdf_url: string | null;
-  text_content: string | null;
-  transcript: string | null;
-  status: SourceStatus;
-  error_message: string | null;
-  created_at: string;
+  id: string
+  user_id: string
+  course_id?: string
+  type: SourceType
+  title?: string
+  raw_url?: string
+  storage_path?: string
+  content_text?: string
+  content_preview?: string
+  status: SourceStatus
+  error_message?: string
+  created_at: string
 }
 
 export interface Course {
-  id: string;
-  user_id: string;
-  title: string;
-  subject: string;
-  language: string;
-  level: CourseLevel;
-  summary: string | null;
-  glossary: GlossaryItem[] | null;
-  key_concepts: KeyConcept[] | null;
-  flashcards: Flashcard[] | null;
-  quiz_questions: QuizQuestion[] | null;
-  created_at: string;
-  updated_at: string;
-  sources?: Source[];
-}
-
-export interface GlossaryItem {
-  term: string;
-  definition: string;
-}
-
-export interface KeyConcept {
-  title: string;
-  explanation: string;
+  id: string
+  user_id: string
+  title: string
+  subject: string
+  level: string
+  language: string
+  summary?: string
+  glossary?: { term: string; definition: string }[]
+  key_concepts?: { concept: string; explanation: string }[]
+  flashcards?: Flashcard[]
+  quiz_questions?: QuizQuestion[]
+  created_at: string
+  updated_at: string
 }
 
 export interface Flashcard {
-  id: string;
-  front: string;
-  back: string;
-  difficulty?: 'easy' | 'medium' | 'hard';
+  front: string
+  back: string
+  mastered?: boolean
 }
 
 export interface QuizQuestion {
-  id: string;
-  question: string;
-  type: 'mcq' | 'true_false' | 'open';
-  options?: string[];
-  correct_answer: string;
-  explanation?: string;
+  question: string
+  type: 'mcq' | 'truefalse'
+  options?: string[]
+  correctAnswer: string
+  explanation: string
+}
+
+export interface ExamPart {
+  title: string
+  questions: ExamQuestion[]
+}
+
+export interface ExamQuestion {
+  number: number
+  question: string
+  points: number
+  type: string
 }
 
 export interface Exam {
-  id: string;
-  user_id: string;
-  subject: string;
-  exam_date: string;
-  duration_minutes: number | null;
-  notes: string | null;
-  created_at: string;
+  title: string
+  duration_minutes: number
+  instructions: string
+  parts: ExamPart[]
+  total_points: number
 }
 
-export interface StudyPlan {
-  id: string;
-  user_id: string;
-  plan_data: StudyDay[];
-  weeks_count: number;
-  daily_hours: number;
-  rest_days: string[];
-  generated_at: string;
+export interface ExamCorrection {
+  score: number
+  total: number
+  percentage: number
+  global_feedback: string
+  corrections: {
+    question_number: number
+    student_answer: string
+    correct_answer: string
+    is_correct: boolean
+    feedback: string
+    points_earned: number
+  }[]
 }
 
-export interface StudyDay {
-  date: string;
-  tasks: StudyTask[];
-}
-
-export interface StudyTask {
-  subject: string;
-  course_title: string;
-  duration_minutes: number;
-  mode: 'review' | 'flashcard' | 'quiz' | 'exam';
+export interface StudyPlanEntry {
+  week: number
+  day: string
+  date: string
+  subject: string
+  duration_hours: number
+  task: string
+  tips: string
 }
 
 export interface QuizScore {
-  id: string;
-  user_id: string;
-  course_id: string;
-  mode: QuizMode;
-  score: number;
-  total: number;
-  feedback: string | null;
-  synced: boolean;
-  created_at: string;
+  id: string
+  user_id: string
+  course_id: string
+  mode: 'flashcard' | 'quiz' | 'exam'
+  score: number
+  total: number
+  feedback?: string
+  synced: boolean
+  created_at: string
+}
+
+export interface Profile {
+  id: string
+  email: string
+  full_name?: string
+  avatar_url?: string
+  created_at: string
 }

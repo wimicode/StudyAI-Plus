@@ -1,15 +1,13 @@
-import { type NextRequest } from 'next/server';
-import { updateSession } from '@/lib/supabase/middleware';
+import { type NextRequest, NextResponse } from 'next/server';
 
-export async function middleware(request: NextRequest) {
-  return await updateSession(request);
+// Middleware minimal — aucune API Node.js, compatible Edge Runtime
+// La protection des routes est gérée côté client par les composants auth
+export function middleware(request: NextRequest) {
+  return NextResponse.next();
 }
 
-// Force this middleware to run on the Node.js runtime instead of the Edge runtime
-// so that Supabase SSR (which uses Node APIs like process.version) is supported.
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\.(?:svg|png|jpg|jpeg|gif|webp|ico|js|css)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|icons|manifest.json|sw.js|workbox-.*.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
-  runtime: 'nodejs',
 };

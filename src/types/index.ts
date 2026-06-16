@@ -135,6 +135,15 @@ export interface StudyPlan {
   generated_at: string
 }
 
+/** Entrée plate renvoyée par /api/planner/generate et utilisée dans PlannerPage */
+export interface StudyPlanEntry {
+  date: string
+  subject: string
+  task: string
+  tips?: string
+  duration_hours: number
+}
+
 export interface QuizScore {
   id: string
   user_id?: string

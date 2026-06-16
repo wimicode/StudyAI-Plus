@@ -12,8 +12,29 @@ export function parseYoutubeUrl(url: string): string | null {
   }
 }
 
-export function getYoutubeThumbnail(videoId: string): string {
+/** Alias: returns true if the URL is a YouTube URL */
+export function isYoutubeUrl(url: string): boolean {
+  try {
+    const u = new URL(url)
+    return u.hostname.includes('youtube.com') || u.hostname.includes('youtu.be')
+  } catch {
+    return false
+  }
+}
+
+/** Alias: extracts the YouTube video ID */
+export function extractYoutubeId(url: string): string | null {
+  return parseYoutubeUrl(url)
+}
+
+/** Builds a YouTube thumbnail URL from a video ID */
+export function buildYoutubeThumbnail(videoId: string): string {
   return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+}
+
+/** Legacy aliases for backwards compatibility */
+export function getYoutubeThumbnail(videoId: string): string {
+  return buildYoutubeThumbnail(videoId)
 }
 
 export function getYoutubeEmbedUrl(videoId: string): string {

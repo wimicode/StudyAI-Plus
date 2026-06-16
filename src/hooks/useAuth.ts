@@ -9,10 +9,9 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const supabase = createClient()
 
   useEffect(() => {
-    const supabase = createClient()
-
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user)
       if (data.user) fetchProfile(data.user.id)
@@ -34,5 +33,9 @@ export function useAuth() {
     return () => subscription.unsubscribe()
   }, [])
 
-  return { user, profile, loading }
+  async function signOut() {
+    await supabase.auth.signOut()
+  }
+
+  return { user, profile, loading, signOut }
 }

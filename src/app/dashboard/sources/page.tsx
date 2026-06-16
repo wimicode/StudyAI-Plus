@@ -83,7 +83,7 @@ export default function SourcesPage() {
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-purple-900 text-white px-6 py-10">
       <div className="max-w-2xl mx-auto">
         <h1 className="text-3xl font-bold mb-2">📥 Nouvelle source</h1>
-        <p className="text-purple-300 mb-8">Ajoute une ou plusieurs sources, puis l’IA créera ton cours.</p>
+        <p className="text-purple-300 mb-8">Ajoute une ou plusieurs sources, puis l'IA créera ton cours.</p>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="bg-white/10 border border-white/20 rounded-2xl p-6 space-y-4">
@@ -142,7 +142,7 @@ export default function SourcesPage() {
                 placeholder={
                   inputType === 'youtube' ? 'https://youtube.com/watch?v=...' :
                   inputType === 'drive'   ? 'https://drive.google.com/file/d/...' :
-                  inputType === 'pdf'     ? 'URL Supabase du PDF ou "uploader dans Supabase Storage"' :
+                  inputType === 'pdf'     ? 'URL du PDF (depuis Supabase Storage)' :
                   "URL de l'image"
                 }
                 value={inputValue} onChange={e => setInputValue(e.target.value)}

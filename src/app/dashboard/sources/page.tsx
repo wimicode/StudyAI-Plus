@@ -2,11 +2,24 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { isYoutubeUrl, extractYoutubeId, buildYoutubeThumbnail } from '@/lib/parsers/parseYoutubeUrl'
+import { parseYoutubeUrl, getYoutubeThumbnail as buildYoutubeThumbnail } from '@/lib/parsers/parseYoutubeUrl'
 import { isGoogleDriveUrl } from '@/lib/parsers/parseDriveUrl'
 import type { SourceType } from '@/types'
 
 type SourceForm = { type: SourceType; value: string; title: string }
+
+function isYoutubeUrl(url: string) {
+  try {
+    const u = new URL(url)
+    return u.hostname.includes('youtube.com') || u.hostname.includes('youtu.be')
+  } catch {
+    return false
+  }
+}
+
+function extractYoutubeId(url: string) {
+  return parseYoutubeUrl(url)
+}
 
 export default function SourcesPage() {
   const router = useRouter()
@@ -129,8 +142,8 @@ export default function SourcesPage() {
                 placeholder={
                   inputType === 'youtube' ? 'https://youtube.com/watch?v=...' :
                   inputType === 'drive'   ? 'https://drive.google.com/file/d/...' :
-                  inputType === 'pdf'     ? 'URL Supabase du PDF ou \"uploader dans Supabase Storage\"' :
-                  'URL de l\'image'
+                  inputType === 'pdf'     ? 'URL Supabase du PDF ou "uploader dans Supabase Storage"' :
+                  "URL de l'image"
                 }
                 value={inputValue} onChange={e => setInputValue(e.target.value)}
                 className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500"

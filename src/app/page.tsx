@@ -26,12 +26,16 @@ export default function LandingPage() {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
           {[
-            { icon: '📄', label: 'PDF' },
-            { icon: '🎬', label: 'YouTube' },
-            { icon: '📝', label: 'Texte libre' },
-            { icon: '🖼️', label: 'Images' },
-          ].map(({ icon, label }) => (
-            <div key={label} className="bg-paper-50 rounded-xl p-4 border border-ink-700/10 shadow-[0_1px_2px_rgba(43,38,32,0.05)] -rotate-1 even:rotate-1">
+            { icon: '📄', label: 'PDF', rotate: '1.6deg' },
+            { icon: '🎬', label: 'YouTube', rotate: '2.4deg' },
+            { icon: '📝', label: 'Texte libre', rotate: '-3.1deg' },
+            { icon: '🖼️', label: 'Images', rotate: '1.1deg' },
+          ].map(({ icon, label, rotate }) => (
+            <div
+              key={label}
+              className="bg-paper-50 rounded-xl p-4 border border-ink-700/10 shadow-[0_1px_2px_rgba(43,38,32,0.05)]"
+              style={{ transform: `rotate(${rotate})` }}
+            >
               <div className="text-3xl mb-2">{icon}</div>
               <div className="text-sm font-medium text-ink-600">{label}</div>
             </div>
@@ -55,11 +59,11 @@ export default function LandingPage() {
 
         <div className="mt-20 grid md:grid-cols-3 gap-6 text-left">
           {[
-            { icon: '🧠', title: 'IA avancée', desc: 'Résumés, flashcards, quiz et examens générés automatiquement depuis tes sources.' },
-            { icon: '📅', title: 'Planning IA', desc: 'Donne tes dates d’examens et l’IA génère ton planning de révision sur mesure.' },
-            { icon: '⬇️', title: 'Export hors-ligne', desc: 'Télécharge tes flashcards pour les garder sur ton PC ou ton Drive, même sans connexion.' },
-          ].map(({ icon, title, desc }) => (
-            <div key={title} className="card text-left">
+            { icon: '🧠', title: 'IA avancée', desc: 'Résumés, flashcards, quiz et examens générés automatiquement depuis tes sources.', rotate: '-1.8deg' },
+            { icon: '📅', title: 'Planning IA', desc: 'Donne tes dates d’examens et l’IA génère ton planning de révision sur mesure.', rotate: '2.2deg' },
+            { icon: '⬇️', title: 'Export hors-ligne', desc: 'Télécharge tes flashcards pour les garder sur ton PC ou ton Drive, même sans connexion.', rotate: '-2.9deg' },
+          ].map(({ icon, title, desc, rotate }) => (
+            <div key={title} className="card text-left" style={{ transform: `rotate(${rotate})` }}>
               <div className="text-3xl mb-3">{icon}</div>
               <h3 className="font-serif text-lg mb-2 text-ink-800">{title}</h3>
               <p className="text-ink-500 text-sm leading-relaxed">{desc}</p>

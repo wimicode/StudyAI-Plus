@@ -19,10 +19,13 @@ export default function RegisterPage() {
     setError(null)
     const { error } = await supabase.auth.signUp({
       email, password,
-      options: { data: { full_name: fullName } },
+      options: {
+        data: { full_name: fullName },
+        emailRedirectTo: `${window.location.origin}/auth/login`,
+      },
     })
     if (error) { setError(error.message); setLoading(false); return }
-    router.push('/dashboard')
+    router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`)
   }
 
   return (

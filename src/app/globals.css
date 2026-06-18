@@ -11,10 +11,13 @@
 
 @layer base {
   body {
-    @apply bg-paper-100 text-ink-700 font-sans antialiased;
+    @apply text-ink-700 font-sans antialiased;
+    background-color: #FAF6EC;
     background-image:
-      linear-gradient(rgba(139, 111, 71, 0.06) 1px, transparent 1px);
-    background-size: 100% 2rem;
+      linear-gradient(rgba(139, 111, 71, 0.14) 1px, transparent 1px),
+      linear-gradient(90deg, transparent calc(4.5rem - 1px), rgba(181, 72, 61, 0.45) calc(4.5rem - 1px), rgba(181, 72, 61, 0.45) calc(4.5rem + 1px), transparent calc(4.5rem + 1px));
+    background-size: 100% 1.75rem, 100% 100%;
+    background-attachment: local, fixed;
   }
   h1, h2, h3 { @apply font-serif text-ink-800; }
   h1 { @apply text-3xl font-semibold; }

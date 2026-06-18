@@ -29,7 +29,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12">
+    <div className="min-h-screen flex items-center justify-center px-4 py-12 page-with-margin">
       <div className="bg-paper-50 border border-ink-700/10 rounded-2xl p-8 w-full max-w-md shadow-[0_2px_4px_rgba(43,38,32,0.06),0_12px_32px_rgba(43,38,32,0.08)] rotate-[0.3deg]">
         <div className="text-center mb-8">
           <div className="text-4xl mb-2">🎓</div>

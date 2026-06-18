@@ -72,13 +72,13 @@
   }
   .nav-link:hover {
     color: theme('colors.ink.700');
-    background-size: 58% 0.6em;     /* 2/3 de largeur au survol */
+    background-size: 40% 0.6em;     /* 2/3 de largeur au survol */
   }
   .nav-link-active {
     color: theme('colors.ink.800') !important;
     font-weight: 600;
     background-image: linear-gradient(100deg, rgba(212,162,76,0.52) 0%, rgba(212,162,76,0.52) 100%);
-    background-size: 58% 0.6em !important;  /* 2/3 de largeur actif */
+    background-size: 40% 0.6em !important;  /* 2/3 de largeur actif */
   }
   .nav-link-danger {
     background-image: none !important;
@@ -87,6 +87,6 @@
   .nav-link-danger:hover {
     color: theme('colors.rust.600') !important;
     background-image: linear-gradient(100deg, rgba(181,72,61,0.18) 0%, rgba(181,72,61,0.18) 100%) !important;
-    background-size: 58% 0.6em !important;
+    background-size: 40% 0.6em !important;
   }
 }

@@ -67,7 +67,7 @@
     background-image: linear-gradient(100deg, rgba(212,162,76,0.18) 0%, rgba(212,162,76,0.18) 100%);
     background-repeat: no-repeat;
     background-size: 0% 0.6em;      /* épaisseur du stabilo */
-    background-position: 0 80%;     /* position verticale — baisse = descend, monte = monte */
+    background-position: 0 85%;     /* position verticale — baisse = descend, monte = monte */
     transition: background-size 0.2s ease, color 0.15s ease;
   }
   .nav-link:hover {

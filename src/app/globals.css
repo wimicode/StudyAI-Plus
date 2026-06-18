@@ -54,22 +54,31 @@
     background-size: 100% 0.5em;
     background-position: 0 88%;
   }
+  /* Navigation sidebar — texte seul, effet stabilo bas uniquement */
   .nav-link {
-    @apply relative flex items-center gap-3 px-3 py-2 text-sm font-medium text-ink-500 transition-colors rounded-md;
+    @apply relative inline-flex items-center gap-3 px-2 py-1.5 text-sm font-medium text-ink-400 transition-all w-full;
+    background-image: linear-gradient(100deg, rgba(212,162,76,0.18) 0%, rgba(212,162,76,0.18) 100%);
+    background-repeat: no-repeat;
+    background-size: 0% 0.45em;
+    background-position: 0 92%;
+    transition: background-size 0.2s ease, color 0.15s ease;
   }
   .nav-link:hover {
-    background-color: rgba(212, 162, 76, 0.16);
     color: theme('colors.ink.700');
+    background-size: 100% 0.45em;
   }
   .nav-link-active {
-    background-color: rgba(212, 162, 76, 0.45);
-    color: theme('colors.ink.800');
+    color: theme('colors.ink.800') !important;
+    font-weight: 600;
+    background-image: linear-gradient(100deg, rgba(212,162,76,0.52) 0%, rgba(212,162,76,0.52) 100%);
+    background-size: 100% 0.45em !important;
   }
-  .nav-link-active:hover {
-    background-color: rgba(212, 162, 76, 0.45);
+  .nav-link-danger {
+    background-image: none !important;
   }
   .nav-link-danger:hover {
-    background-color: rgba(181, 72, 61, 0.16);
-    color: theme('colors.rust.600');
+    color: theme('colors.rust.600') !important;
+    background-image: linear-gradient(100deg, rgba(181,72,61,0.18) 0%, rgba(181,72,61,0.18) 100%) !important;
+    background-size: 100% 0.45em !important;
   }
 }

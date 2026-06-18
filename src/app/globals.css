@@ -87,6 +87,6 @@
   .nav-link-danger:hover {
     color: theme('colors.rust.600') !important;
     background-image: linear-gradient(100deg, rgba(181,72,61,0.18) 0%, rgba(181,72,61,0.18) 100%) !important;
-    background-size: 40% 0.6em !important;
+    background-size: 48% 0.6em !important;
   }
 }

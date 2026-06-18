@@ -54,4 +54,22 @@
     background-size: 100% 0.5em;
     background-position: 0 88%;
   }
+  .nav-link {
+    @apply relative flex items-center gap-3 px-3 py-2 text-sm font-medium text-ink-500 transition-colors rounded-md;
+  }
+  .nav-link:hover {
+    background-color: rgba(212, 162, 76, 0.16);
+    color: theme('colors.ink.700');
+  }
+  .nav-link-active {
+    background-color: rgba(212, 162, 76, 0.45);
+    color: theme('colors.ink.800');
+  }
+  .nav-link-active:hover {
+    background-color: rgba(212, 162, 76, 0.45);
+  }
+  .nav-link-danger:hover {
+    background-color: rgba(181, 72, 61, 0.16);
+    color: theme('colors.rust.600');
+  }
 }

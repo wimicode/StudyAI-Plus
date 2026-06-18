@@ -2,7 +2,7 @@ import Link from 'next/link'
 
 export default function LandingPage() {
   return (
-    <main className="min-h-screen bg-paper-100 text-ink-700">
+    <main className="min-h-screen text-ink-700">
       <div className="max-w-4xl mx-auto px-6 py-20 text-center">
         <div className="inline-flex items-center gap-2 text-xs font-medium tracking-wide uppercase text-ink-500 border border-ink-700/15 bg-paper-50 rounded-full px-4 py-1.5 mb-8">
           <span className="w-1.5 h-1.5 rounded-full bg-brand-500" />

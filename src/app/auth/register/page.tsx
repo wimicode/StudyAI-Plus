@@ -26,38 +26,39 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-purple-900 flex items-center justify-center px-4">
-      <div className="bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-8 w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center px-4 py-12">
+      <div className="bg-paper-50 border border-ink-700/10 rounded-2xl p-8 w-full max-w-md shadow-[0_2px_4px_rgba(43,38,32,0.06),0_12px_32px_rgba(43,38,32,0.08)] rotate-[0.3deg]">
         <div className="text-center mb-8">
           <div className="text-4xl mb-2">🎓</div>
-          <h1 className="text-2xl font-bold text-white">Créer un compte</h1>
+          <h1 className="font-serif text-2xl font-semibold text-ink-800">Créer un compte</h1>
+          <p className="text-sm text-ink-400 mt-1">Commence à réviser malin</p>
         </div>
         <form onSubmit={handleRegister} className="space-y-4">
           <input
             type="text" placeholder="Ton prénom" value={fullName} onChange={e => setFullName(e.target.value)}
-            className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="input"
           />
           <input
             type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)}
             required
-            className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="input"
           />
           <input
             type="password" placeholder="Mot de passe (6 caractères min.)" value={password} onChange={e => setPassword(e.target.value)}
             required minLength={6}
-            className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="input"
           />
-          {error && <p className="text-red-400 text-sm">{error}</p>}
+          {error && <p className="text-rust-600 text-sm">{error}</p>}
           <button
             type="submit" disabled={loading}
-            className="w-full bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition-all"
+            className="btn-primary w-full py-3"
           >
             {loading ? 'Création...' : 'Créer mon compte'}
           </button>
         </form>
-        <p className="text-center text-purple-300 text-sm mt-6">
+        <p className="text-center text-ink-400 text-sm mt-6">
           Déjà un compte ?{' '}
-          <Link href="/auth/login" className="text-white underline">Se connecter</Link>
+          <Link href="/auth/login" className="text-ink-700 font-medium underline">Se connecter</Link>
         </p>
       </div>
     </div>

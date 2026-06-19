@@ -47,6 +47,58 @@ function parseJSON<T>(raw: string, fallback: T): T {
 }
 
 // ============================================================
+// VISION OCR – lit le texte (imprimé ou manuscrit) dans une image
+// via NVIDIA NIM (Llama 3.2 Vision). Utilisé pour les PDF scannés.
+// Configure via: NVIDIA_API_KEY (clé obtenue sur build.nvidia.com)
+// ============================================================
+const NVIDIA_API_URL = 'https://integrate.api.nvidia.com/v1/chat/completions'
+const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY || ''
+const NVIDIA_VISION_MODEL = 'meta/llama-3.2-11b-vision-instruct'
+
+export async function visionOcr(imageBase64: string): Promise<string> {
+  if (!NVIDIA_API_KEY) {
+    throw new Error('NVIDIA_API_KEY manquante — impossible de lire les PDF scannés/manuscrits.')
+  }
+
+  const res = await fetch(NVIDIA_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${NVIDIA_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: NVIDIA_VISION_MODEL,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'Retranscris fidèlement tout le texte visible sur cette image (imprimé ou manuscrit). Réponds UNIQUEMENT avec le texte retranscrit, sans commentaire, sans markdown, sans préambule. Si l\'image ne contient aucun texte lisible, réponds exactement: [AUCUN TEXTE]',
+            },
+            {
+              type: 'image_url',
+              image_url: { url: `data:image/png;base64,${imageBase64}` },
+            },
+          ],
+        },
+      ],
+      max_tokens: 2048,
+      temperature: 0.2,
+    }),
+  })
+
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(`NVIDIA Vision API error ${res.status}: ${err}`)
+  }
+
+  const data = await res.json()
+  const text = data.choices?.[0]?.message?.content ?? ''
+  return text.trim() === '[AUCUN TEXTE]' ? '' : text.trim()
+}
+
+// ============================================================
 // ANALYZE SOURCES – fusionne plusieurs sources en un cours
 // ============================================================
 export async function analyzeSources(

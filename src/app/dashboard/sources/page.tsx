@@ -1,9 +1,8 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { parseYoutubeUrl, getYoutubeThumbnail as buildYoutubeThumbnail } from '@/lib/parsers/parseYoutubeUrl'
-import { isGoogleDriveUrl } from '@/lib/parsers/parseDriveUrl'
 import type { SourceType } from '@/types'
 
 type SourceForm = { type: SourceType; value: string; title: string }
@@ -12,8 +11,18 @@ const SOURCE_TYPES: { type: SourceType; icon: string; label: string }[] = [
   { type: 'text',    icon: '📝', label: 'Texte'   },
   { type: 'youtube', icon: '🎬', label: 'YouTube' },
   { type: 'pdf',     icon: '📄', label: 'PDF'     },
-  { type: 'drive',   icon: '📦', label: 'Drive'   },
+  { type: 'drive',   icon: '📁', label: 'Drive'   },
   { type: 'image',   icon: '🖼️', label: 'Image'   },
+]
+
+const LEVELS = [
+  { value: '1s',  label: '1re secondaire' },
+  { value: '2s',  label: '2e secondaire'  },
+  { value: '3s',  label: '3e secondaire'  },
+  { value: '4s',  label: '4e secondaire'  },
+  { value: '5s',  label: '5e secondaire'  },
+  { value: '6s',  label: '6e secondaire'  },
+  { value: 'uni', label: 'Université / Haute École' },
 ]
 
 function isYoutubeUrl(url: string) {
@@ -26,20 +35,65 @@ function isYoutubeUrl(url: string) {
 export default function SourcesPage() {
   const router = useRouter()
   const supabase = createClient()
-  const [sources, setSources]       = useState<SourceForm[]>([])
+  const [sources, setSources]         = useState<SourceForm[]>([])
   const [courseTitle, setCourseTitle] = useState('')
-  const [subject, setSubject]       = useState('')
-  const [level, setLevel]           = useState('high_school')
-  const [lang, setLang]             = useState('fr')
-  const [loading, setLoading]       = useState(false)
-  const [error, setError]           = useState<string | null>(null)
-  const [inputType, setInputType]   = useState<SourceType>('text')
-  const [inputValue, setInputValue] = useState('')
-  const [inputTitle, setInputTitle] = useState('')
+  const [subject, setSubject]         = useState('')
+  const [level, setLevel]             = useState('6s')
+  const [lang, setLang]               = useState('fr')
+  const [loading, setLoading]         = useState(false)
+  const [error, setError]             = useState<string | null>(null)
+  const [inputType, setInputType]     = useState<SourceType>('text')
+  const [inputValue, setInputValue]   = useState('')
+  const [inputTitle, setInputTitle]   = useState('')
+  const [pdfLoading, setPdfLoading]   = useState(false)
+  const [isDragging, setIsDragging]   = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // ── Upload PDF ──────────────────────────────────────────────
+  async function processPdfFile(file: File) {
+    if (file.type !== 'application/pdf') {
+      setError('Seuls les fichiers PDF sont acceptés.')
+      return
+    }
+    setPdfLoading(true)
+    setError(null)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch('/api/sources/upload-pdf', { method: 'POST', body: form })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      // On stocke le texte extrait comme source "text" taggée pdf
+      setSources(prev => [...prev, {
+        type: 'text',
+        value: data.text,
+        title: file.name.replace('.pdf', '') || 'PDF importé',
+      }])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la lecture du PDF')
+    } finally {
+      setPdfLoading(false)
+    }
+  }
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    const file = e.dataTransfer.files[0]
+    if (file) processPdfFile(file)
+  }, [])
+
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true) }
+  const handleDragLeave = () => setIsDragging(false)
+
+  // ── Autres sources ──────────────────────────────────────────
   function addSource() {
     if (!inputValue.trim()) return
-    setSources(prev => [...prev, { type: inputType, value: inputValue, title: inputTitle || inputType }])
+    setSources(prev => [...prev, {
+      type: inputType,
+      value: inputValue,
+      title: inputTitle || inputType,
+    }])
     setInputValue('')
     setInputTitle('')
   }
@@ -48,6 +102,7 @@ export default function SourcesPage() {
     setSources(prev => prev.filter((_, idx) => idx !== i))
   }
 
+  // ── Soumission ──────────────────────────────────────────────
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (sources.length === 0) { setError('Ajoute au moins une source.'); return }
@@ -74,19 +129,14 @@ export default function SourcesPage() {
     return id ? buildYoutubeThumbnail(id) : null
   }
 
-  const sourceMeta = SOURCE_TYPES.find(s => s.type === inputType)!
   const inputPlaceholder =
     inputType === 'youtube' ? 'https://youtube.com/watch?v=...' :
     inputType === 'drive'   ? 'https://drive.google.com/file/d/...' :
-    inputType === 'pdf'     ? 'URL du PDF (depuis Supabase Storage)' :
     inputType === 'image'   ? "URL de l'image" : ''
 
   return (
     <div className="animate-fade-in max-w-2xl mx-auto">
-
-      <h1 className="font-serif text-3xl font-semibold text-ink-800 mb-1">
-        Nouvelle source
-      </h1>
+      <h1 className="font-serif text-3xl font-semibold text-ink-800 mb-1">Nouvelle source</h1>
       <p className="text-ink-400 text-sm mb-8">
         Ajoute une ou plusieurs sources, puis l&apos;IA créera ton cours.
       </p>
@@ -108,10 +158,9 @@ export default function SourcesPage() {
           />
           <div className="grid grid-cols-2 gap-3">
             <select value={level} onChange={e => setLevel(e.target.value)} className="input">
-              <option value="primary">Primaire</option>
-              <option value="middle">Collège</option>
-              <option value="high_school">Lycée</option>
-              <option value="university">Université</option>
+              {LEVELS.map(l => (
+                <option key={l.value} value={l.value}>{l.label}</option>
+              ))}
             </select>
             <select value={lang} onChange={e => setLang(e.target.value)} className="input">
               <option value="fr">Français</option>
@@ -122,13 +171,46 @@ export default function SourcesPage() {
           </div>
         </div>
 
-        {/* ── Ajouter une source ── */}
-        <div className="card space-y-4">
-          <h2 className="font-serif text-lg text-ink-800">Ajouter une source</h2>
+        {/* ── PDF glisser-déposer ── */}
+        <div className="card space-y-3">
+          <h2 className="font-serif text-lg text-ink-800">Importer un PDF</h2>
+          <p className="text-ink-400 text-xs">
+            Le texte est extrait automatiquement et envoyé à l&apos;IA. Les PDFs scannés (images) ne fonctionnent pas.
+          </p>
+          <div
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onClick={() => fileInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-xl px-6 py-10 text-center cursor-pointer transition-all ${
+              isDragging
+                ? 'border-primary-400 bg-primary-50'
+                : 'border-ink-700/20 hover:border-primary-300 hover:bg-paper-200/50'
+            }`}
+          >
+            <input
+              ref={fileInputRef} type="file" accept="application/pdf"
+              className="hidden"
+              onChange={e => { const f = e.target.files?.[0]; if (f) processPdfFile(f) }}
+            />
+            {pdfLoading ? (
+              <p className="text-ink-500 text-sm">⏳ Extraction du texte en cours...</p>
+            ) : (
+              <>
+                <p className="text-3xl mb-2">📄</p>
+                <p className="text-sm font-medium text-ink-600">Glisse un PDF ici</p>
+                <p className="text-xs text-ink-400 mt-1">ou clique pour parcourir — max 10 Mo</p>
+              </>
+            )}
+          </div>
+        </div>
 
-          {/* Sélecteur de type */}
+        {/* ── Autres sources ── */}
+        <div className="card space-y-4">
+          <h2 className="font-serif text-lg text-ink-800">Autres sources</h2>
+
           <div className="flex gap-2 flex-wrap">
-            {SOURCE_TYPES.map(({ type, icon, label }) => (
+            {SOURCE_TYPES.filter(s => s.type !== 'pdf').map(({ type, icon, label }) => (
               <button key={type} type="button" onClick={() => setInputType(type)}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${
                   inputType === type
@@ -140,13 +222,22 @@ export default function SourcesPage() {
             ))}
           </div>
 
-          {/* Zone de saisie */}
+          {/* Avertissement Drive */}
+          {inputType === 'drive' && (
+            <div className="bg-primary-50 border border-primary-200 rounded-xl px-4 py-3 text-xs text-ink-600 leading-relaxed">
+              <p className="font-semibold mb-1">📁 Lien Google Drive</p>
+              Le fichier doit être partagé en <strong>accès restreint</strong> ou <strong>public</strong>.
+              Colle le lien de partage — l&apos;IA recevra l&apos;URL et tentera d&apos;en lire le contenu.
+              Pour un accès complet à ton Drive sans rendre le fichier public, un connecteur
+              Google Drive OAuth sera nécessaire (fonctionnalité à venir).
+            </div>
+          )}
+
           {inputType === 'text' ? (
             <textarea
               placeholder="Colle ton texte, tes notes, un extrait de cours..."
               value={inputValue} onChange={e => setInputValue(e.target.value)}
-              rows={5}
-              className="input resize-none"
+              rows={5} className="input resize-none"
             />
           ) : (
             <input
@@ -156,14 +247,10 @@ export default function SourcesPage() {
             />
           )}
 
-          {/* Miniature YouTube */}
           {inputType === 'youtube' && inputValue && getYoutubeThumbnail(inputValue) && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={getYoutubeThumbnail(inputValue)!}
-              alt="Miniature YouTube"
-              className="rounded-xl w-full max-w-xs border border-ink-700/10"
-            />
+            <img src={getYoutubeThumbnail(inputValue)!} alt="Miniature YouTube"
+              className="rounded-xl w-full max-w-xs border border-ink-700/10" />
           )}
 
           <input
@@ -184,7 +271,7 @@ export default function SourcesPage() {
               {sources.length} source{sources.length > 1 ? 's' : ''} ajoutée{sources.length > 1 ? 's' : ''}
             </p>
             {sources.map((s, i) => {
-              const meta = SOURCE_TYPES.find(x => x.type === s.type)!
+              const meta = SOURCE_TYPES.find(x => x.type === s.type) ?? SOURCE_TYPES[0]
               return (
                 <div key={i}
                   className="flex items-center justify-between bg-paper-50 border border-ink-700/10 rounded-xl px-4 py-3"
@@ -194,11 +281,11 @@ export default function SourcesPage() {
                     <span>{meta.icon}</span>
                     <span className="font-medium">{meta.label}</span>
                     {s.title && s.title !== s.type && (
-                      <span className="text-ink-400">— {s.title}</span>
+                      <span className="text-ink-400 truncate max-w-[180px]">— {s.title}</span>
                     )}
                   </span>
                   <button type="button" onClick={() => removeSource(i)}
-                    className="text-rust-500 hover:text-rust-600 text-xs font-medium transition-colors">
+                    className="text-rust-500 hover:text-rust-600 text-xs font-medium transition-colors shrink-0 ml-3">
                     Retirer
                   </button>
                 </div>
@@ -207,15 +294,13 @@ export default function SourcesPage() {
           </div>
         )}
 
-        {/* ── Erreur ── */}
         {error && (
           <p className="text-rust-600 text-sm bg-rust-500/8 border border-rust-500/20 rounded-xl px-4 py-3">
             {error}
           </p>
         )}
 
-        {/* ── Soumettre ── */}
-        <button type="submit" disabled={loading} className="btn-primary w-full py-4 text-base">
+        <button type="submit" disabled={loading || pdfLoading} className="btn-primary w-full py-4 text-base">
           {loading ? '⏳ Analyse IA en cours...' : '🧠 Analyser et créer le cours'}
         </button>
 

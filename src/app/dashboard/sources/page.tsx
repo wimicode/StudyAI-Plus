@@ -46,6 +46,7 @@ export default function SourcesPage() {
   const [inputValue, setInputValue]   = useState('')
   const [inputTitle, setInputTitle]   = useState('')
   const [pdfLoading, setPdfLoading]   = useState(false)
+  const [pdfNotice, setPdfNotice]     = useState<string | null>(null)
   const [isDragging, setIsDragging]   = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -57,6 +58,7 @@ export default function SourcesPage() {
     }
     setPdfLoading(true)
     setError(null)
+    setPdfNotice(null)
     try {
       const form = new FormData()
       form.append('file', file)
@@ -69,6 +71,11 @@ export default function SourcesPage() {
         value: data.text,
         title: file.name.replace('.pdf', '') || 'PDF importé',
       }])
+      setPdfNotice(
+        data.method === 'vision-ocr'
+          ? `📄 PDF scanné détecté — lu par l'IA de vision (${data.pages} page${data.pages > 1 ? 's' : ''}).`
+          : `✅ Texte extrait directement (${data.pages} page${data.pages > 1 ? 's' : ''}).`
+      )
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors de la lecture du PDF')
     } finally {
@@ -194,15 +201,22 @@ export default function SourcesPage() {
               onChange={e => { const f = e.target.files?.[0]; if (f) processPdfFile(f) }}
             />
             {pdfLoading ? (
-              <p className="text-ink-500 text-sm">⏳ Extraction du texte en cours...</p>
+              <p className="text-ink-500 text-sm">
+                ⏳ Lecture du PDF en cours... <span className="text-ink-400">(peut prendre jusqu&apos;à 1 minute si c&apos;est un scan)</span>
+              </p>
             ) : (
               <>
                 <p className="text-3xl mb-2">📄</p>
                 <p className="text-sm font-medium text-ink-600">Glisse un PDF ici</p>
-                <p className="text-xs text-ink-400 mt-1">ou clique pour parcourir — max 10 Mo</p>
+                <p className="text-xs text-ink-400 mt-1">ou clique pour parcourir — max 10 Mo, texte ou scanné/manuscrit</p>
               </>
             )}
           </div>
+          {pdfNotice && (
+            <p className="text-xs text-brand-600 bg-brand-50 border border-brand-200 rounded-lg px-3 py-2">
+              {pdfNotice}
+            </p>
+          )}
         </div>
 
         {/* ── Autres sources ── */}

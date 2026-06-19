@@ -66,6 +66,7 @@ export async function visionOcr(imageBase64: string, mimeType: 'image/png' | 'im
       'Content-Type': 'application/json',
       Authorization: `Bearer ${NVIDIA_API_KEY}`,
     },
+    signal: AbortSignal.timeout(50_000), // sous la limite maxDuration de 60s de la route
     body: JSON.stringify({
       model: NVIDIA_VISION_MODEL,
       messages: [

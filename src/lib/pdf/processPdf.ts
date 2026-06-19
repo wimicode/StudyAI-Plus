@@ -89,6 +89,12 @@ export async function processPdfClientSide(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ imageBase64: jpegBase64 }),
+      signal: AbortSignal.timeout(55_000), // évite un blocage indéfini si NVIDIA ne répond pas
+    }).catch((err) => {
+      if (err.name === 'TimeoutError') {
+        throw new Error(`La lecture de la page ${i} a pris trop de temps (>55s) — réessaie, ou avec un PDF plus court.`)
+      }
+      throw err
     })
 
     let data: { text?: string; error?: string }

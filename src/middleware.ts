@@ -1,9 +1,10 @@
-import { type NextRequest, NextResponse } from 'next/server';
+import { type NextRequest } from 'next/server';
+import { updateSession } from '@/lib/supabase/middleware';
 
-// Middleware minimal — aucune API Node.js, compatible Edge Runtime
-// La protection des routes est gérée côté client par les composants auth
-export function middleware(request: NextRequest) {
-  return NextResponse.next();
+// Rafraîchit la session Supabase à chaque requête (évite les erreurs
+// "Non autorisé" causées par un token expiré non rafraîchi).
+export async function middleware(request: NextRequest) {
+  return await updateSession(request);
 }
 
 export const config = {

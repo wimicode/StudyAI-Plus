@@ -3,6 +3,7 @@ import { useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { parseYoutubeUrl, getYoutubeThumbnail as buildYoutubeThumbnail } from '@/lib/parsers/parseYoutubeUrl'
+import { processPdfClientSide } from '@/lib/pdf/processPdf'
 import type { SourceType } from '@/types'
 
 type SourceForm = { type: SourceType; value: string; title: string }
@@ -46,11 +47,15 @@ export default function SourcesPage() {
   const [inputValue, setInputValue]   = useState('')
   const [inputTitle, setInputTitle]   = useState('')
   const [pdfLoading, setPdfLoading]   = useState(false)
+  const [pdfProgress, setPdfProgress] = useState<{ current: number; total: number } | null>(null)
   const [pdfNotice, setPdfNotice]     = useState<string | null>(null)
   const [isDragging, setIsDragging]   = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // ── Upload PDF ──────────────────────────────────────────────
+  // ── Upload PDF — traitement 100% côté navigateur ────────────
+  // Le PDF n'est jamais envoyé en entier au serveur : on extrait le texte
+  // natif localement, et si besoin, on envoie chaque PAGE (image légère)
+  // séparément à l'OCR vision. Aucune limite de taille de fichier PDF.
   async function processPdfFile(file: File) {
     if (file.type !== 'application/pdf') {
       setError('Seuls les fichiers PDF sont acceptés.')
@@ -59,27 +64,26 @@ export default function SourcesPage() {
     setPdfLoading(true)
     setError(null)
     setPdfNotice(null)
+    setPdfProgress(null)
     try {
-      const form = new FormData()
-      form.append('file', file)
-      const res = await fetch('/api/sources/upload-pdf', { method: 'POST', body: form })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      // On stocke le texte extrait comme source "text" taggée pdf
+      const result = await processPdfClientSide(file, (current, total) => {
+        setPdfProgress({ current, total })
+      })
       setSources(prev => [...prev, {
         type: 'text',
-        value: data.text,
+        value: result.text,
         title: file.name.replace('.pdf', '') || 'PDF importé',
       }])
       setPdfNotice(
-        data.method === 'vision-ocr'
-          ? `📄 PDF scanné détecté — lu par l'IA de vision (${data.pages} page${data.pages > 1 ? 's' : ''}).`
-          : `✅ Texte extrait directement (${data.pages} page${data.pages > 1 ? 's' : ''}).`
+        result.method === 'vision-ocr'
+          ? `📄 PDF scanné détecté — lu par l'IA de vision (${result.pageCount} page${result.pageCount > 1 ? 's' : ''}).`
+          : `✅ Texte extrait directement (${result.pageCount} page${result.pageCount > 1 ? 's' : ''}).`
       )
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors de la lecture du PDF')
     } finally {
       setPdfLoading(false)
+      setPdfProgress(null)
     }
   }
 
@@ -202,13 +206,15 @@ export default function SourcesPage() {
             />
             {pdfLoading ? (
               <p className="text-ink-500 text-sm">
-                ⏳ Lecture du PDF en cours... <span className="text-ink-400">(peut prendre jusqu&apos;à 1 minute si c&apos;est un scan)</span>
+                {pdfProgress
+                  ? `⏳ Lecture par IA — page ${pdfProgress.current}/${pdfProgress.total}...`
+                  : '⏳ Lecture du PDF en cours...'}
               </p>
             ) : (
               <>
                 <p className="text-3xl mb-2">📄</p>
                 <p className="text-sm font-medium text-ink-600">Glisse un PDF ici</p>
-                <p className="text-xs text-ink-400 mt-1">ou clique pour parcourir — max 10 Mo, texte ou scanné/manuscrit</p>
+                <p className="text-xs text-ink-400 mt-1">texte ou scanné/manuscrit — traité directement dans ton navigateur</p>
               </>
             )}
           </div>

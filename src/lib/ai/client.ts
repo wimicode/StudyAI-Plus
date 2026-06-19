@@ -55,7 +55,7 @@ const NVIDIA_API_URL = 'https://integrate.api.nvidia.com/v1/chat/completions'
 const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY || ''
 const NVIDIA_VISION_MODEL = 'meta/llama-3.2-11b-vision-instruct'
 
-export async function visionOcr(imageBase64: string): Promise<string> {
+export async function visionOcr(imageBase64: string, mimeType: 'image/png' | 'image/jpeg' = 'image/jpeg'): Promise<string> {
   if (!NVIDIA_API_KEY) {
     throw new Error('NVIDIA_API_KEY manquante — impossible de lire les PDF scannés/manuscrits.')
   }
@@ -78,7 +78,7 @@ export async function visionOcr(imageBase64: string): Promise<string> {
             },
             {
               type: 'image_url',
-              image_url: { url: `data:image/png;base64,${imageBase64}` },
+              image_url: { url: `data:${mimeType};base64,${imageBase64}` },
             },
           ],
         },

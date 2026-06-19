@@ -76,7 +76,7 @@ export default function SourcesPage() {
       }])
       setPdfNotice(
         result.method === 'vision-ocr'
-          ? `📄 PDF scanné détecté — lu par l'IA de vision (${result.pageCount} page${result.pageCount > 1 ? 's' : ''}).`
+          ? `📄 PDF scanné détecté — lu par l'IA (${result.pageCount} page${result.pageCount > 1 ? 's' : ''}).`
           : `✅ Texte extrait directement (${result.pageCount} page${result.pageCount > 1 ? 's' : ''}).`
       )
     } catch (err) {

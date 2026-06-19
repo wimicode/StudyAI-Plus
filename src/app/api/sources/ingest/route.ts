@@ -11,9 +11,12 @@ export async function POST(req: NextRequest) {
   let courseId: string | undefined;
 
   try {
+    const allCookies = req.cookies.getAll().map(c => c.name)
+    console.log('[ingest] cookies reçus:', allCookies)
     supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    console.log('[ingest] auth check — user:', user?.id ?? 'NULL', '| error:', authError?.message ?? 'none');
+    if (!user) return NextResponse.json({ error: 'Non autorisé', debug: authError?.message }, { status: 401 });
     userId = user.id;
 
     const body = await req.json();

@@ -6,7 +6,7 @@ export type SourceType = 'pdf' | 'youtube' | 'text' | 'drive' | 'image'
 export type SourceStatus = 'pending' | 'processing' | 'processed' | 'error'
 export type CourseStatus = 'draft' | 'processing' | 'ready' | 'error'
 export type QuizMode = 'flashcard' | 'quiz' | 'exam'
-export type UserLevel = 'college' | 'lycee' | 'bac' | 'superieur' | 'autre'
+export type UserLevel = '1s' | '2s' | '3s' | '4s' | '5s' | '6s' | 'uni' | 'college' | 'lycee' | 'bac' | 'superieur' | 'autre'
 export type Difficulty = 'easy' | 'medium' | 'hard'
 
 export interface Profile {

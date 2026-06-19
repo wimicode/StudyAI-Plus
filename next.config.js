@@ -24,7 +24,6 @@ const withPWA = require('next-pwa')({
 const nextConfig = {
   reactStrictMode: true,
   images: { remotePatterns: [{ protocol: 'https', hostname: '*.supabase.co' }] },
-  serverExternalPackages: ['pdf-parse'],
   webpack: (config) => {
     config.resolve.alias.canvas = false;
     return config;

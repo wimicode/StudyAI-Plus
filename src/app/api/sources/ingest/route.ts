@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-import { analyzeSources, generateFlashcards, generateQuiz } from '@/lib/ai/client';
+import { analyzeSources } from '@/lib/ai/client';
 import type { SourceType } from '@/types';
 
 // 3 appels LLM en parallèle (analyse + flashcards + quiz) peuvent dépasser
@@ -107,23 +107,16 @@ export async function POST(req: NextRequest) {
           : '',
     })).filter((s) => s.content.length > 0);
 
-    const combinedContent = sourcesForAI.map((s) => s.content).join('\n\n---\n\n')
-      || `${course.title} - ${course.subject}`;
-
-    // 4. Générer le contenu IA en SÉQUENTIEL (pas en parallèle) pour rester
-    //    sous la limite de débit Groq (12000 tokens/min sur le tier gratuit) —
-    //    3 appels simultanés dépassaient facilement cette limite d'un coup.
+    // 4. Générer uniquement l'analyse (résumé/glossaire/concepts) à l'ingestion.
+    //    Flashcards/quiz/crash-test se génèrent ensuite à la demande, avec les
+    //    paramètres choisis par l'utilisateur (voir /dashboard/courses/[id]/generate).
     const analysis = await analyzeSources(sourcesForAI, course.subject, course.level, course.language);
-    const flashcards = await generateFlashcards(combinedContent, course.subject, course.level, course.language);
-    const quiz = await generateQuiz(combinedContent, course.subject, course.level, course.language);
 
-    // 5. Mettre à jour le cours avec les résultats IA
+    // 5. Mettre à jour le cours avec les résultats de l'analyse
     const { error: updateError } = await supabase.from('courses').update({
       summary: analysis.summary,
       glossary: analysis.glossary,
       key_concepts: analysis.key_concepts,
-      flashcards,
-      quiz_questions: quiz,
       status: 'ready',
     }).eq('id', course.id).eq('user_id', user.id);
 

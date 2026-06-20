@@ -14,7 +14,21 @@ export async function POST(req: NextRequest) {
     const allCookies = req.cookies.getAll().map(c => c.name)
     console.log('[ingest] cookies reçus:', allCookies)
     supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    let { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    // Fallback : si le cookie de session est absent/invalide côté serveur,
+    // on retente avec le token Bearer envoyé explicitement par le frontend.
+    if (!user) {
+      const authHeader = req.headers.get('authorization')
+      const bearerToken = authHeader?.replace('Bearer ', '')
+      if (bearerToken) {
+        const result = await supabase.auth.getUser(bearerToken)
+        user = result.data.user
+        authError = result.error
+        console.log('[ingest] fallback Bearer — user:', user?.id ?? 'NULL toujours', '| error:', authError?.message ?? 'none')
+      }
+    }
+
     console.log('[ingest] auth check — user:', user?.id ?? 'NULL', '| error:', authError?.message ?? 'none');
     if (!user) return NextResponse.json({ error: 'Non autorisé', debug: authError?.message }, { status: 401 });
     userId = user.id;

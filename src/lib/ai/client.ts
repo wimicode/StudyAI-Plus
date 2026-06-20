@@ -13,7 +13,8 @@ interface Message {
   content: string
 }
 
-async function chat(messages: Message[], temperature = 0.7): Promise<string> {
+async function chat(messages: Message[], temperature = 0.7, attempt = 1): Promise<string> {
+  const MAX_ATTEMPTS = 3
   const res = await fetch(LLM_API_URL, {
     method: 'POST',
     headers: {
@@ -27,6 +28,15 @@ async function chat(messages: Message[], temperature = 0.7): Promise<string> {
       max_tokens: 4096,
     }),
   })
+
+  if (res.status === 429 && attempt < MAX_ATTEMPTS) {
+    const errBody = await res.text()
+    // Le message Groq contient "Please try again in 15.64s" — on extrait ce délai
+    const match = /try again in ([\d.]+)s/.exec(errBody)
+    const waitSeconds = match ? parseFloat(match[1]) + 1 : 20 // +1s de marge de sécurité
+    await new Promise((resolve) => setTimeout(resolve, waitSeconds * 1000))
+    return chat(messages, temperature, attempt + 1)
+  }
 
   if (!res.ok) {
     const err = await res.text()

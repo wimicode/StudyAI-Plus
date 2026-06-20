@@ -56,6 +56,18 @@ const GROQ_VISION_API_URL = 'https://api.groq.com/openai/v1/chat/completions'
 const GROQ_VISION_API_KEY = process.env.GROQ_API_KEY || process.env.LLM_API_KEY || ''
 const GROQ_VISION_MODEL = 'qwen/qwen3.6-27b'
 
+/** Erreur qui préserve le vrai code HTTP (ex: 429 rate limit) pour que
+ *  l'appelant (route API) puisse le propager au client plutôt que de
+ *  toujours renvoyer 500. */
+export class VisionOcrError extends Error {
+  status: number
+  constructor(message: string, status: number) {
+    super(message)
+    this.status = status
+    this.name = 'VisionOcrError'
+  }
+}
+
 export async function visionOcr(imageBase64: string, mimeType: 'image/png' | 'image/jpeg' = 'image/jpeg'): Promise<string> {
   if (!GROQ_VISION_API_KEY) {
     throw new Error('GROQ_API_KEY (ou LLM_API_KEY) manquante — impossible de lire les PDF scannés/manuscrits.')
@@ -92,7 +104,7 @@ export async function visionOcr(imageBase64: string, mimeType: 'image/png' | 'im
 
   if (!res.ok) {
     const err = await res.text()
-    throw new Error(`Groq Vision API error ${res.status}: ${err}`)
+    throw new VisionOcrError(err, res.status)
   }
 
   const data = await res.json()

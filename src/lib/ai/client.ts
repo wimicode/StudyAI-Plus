@@ -29,11 +29,16 @@ async function chat(messages: Message[], temperature = 0.7, attempt = 1): Promis
     }),
   })
 
-  if (res.status === 429 && attempt < MAX_ATTEMPTS) {
+  if ((res.status === 429 || res.status === 413) && attempt < MAX_ATTEMPTS) {
     const errBody = await res.text()
-    // Le message Groq contient "Please try again in 15.64s" — on extrait ce délai
+    // Le message Groq contient parfois "Please try again in 15.64s" — sinon
+    // (cas 413 "Request too large"), retenter ne servira à rien : le contenu
+    // doit être réduit en amont (voir MAX_CHARS dans analyzeSources etc.).
     const match = /try again in ([\d.]+)s/.exec(errBody)
-    const waitSeconds = match ? parseFloat(match[1]) + 1 : 20 // +1s de marge de sécurité
+    if (!match) {
+      throw new Error(`AI API error ${res.status}: ${errBody}`)
+    }
+    const waitSeconds = parseFloat(match[1]) + 1 // +1s de marge de sécurité
     await new Promise((resolve) => setTimeout(resolve, waitSeconds * 1000))
     return chat(messages, temperature, attempt + 1)
   }
@@ -131,9 +136,18 @@ export async function analyzeSources(
   level: string,
   language: string
 ) {
-  const sourcesText = sources
+  // Limite Groq : 12000 tokens/min sur le tier gratuit (~4 caractères/token
+  // en moyenne pour du français). On laisse de la marge pour le prompt
+  // système, les instructions, et la réponse elle-même.
+  const MAX_CHARS = 16000
+
+  let sourcesText = sources
     .map((s, i) => `[Source ${i + 1} – ${s.type.toUpperCase()}${s.title ? ` : ${s.title}` : ''}]\n${s.content}`)
     .join('\n\n---\n\n')
+
+  if (sourcesText.length > MAX_CHARS) {
+    sourcesText = sourcesText.slice(0, MAX_CHARS) + '\n\n[...contenu tronqué pour rester dans la limite de l\'IA...]'
+  }
 
   const raw = await chat([
     {

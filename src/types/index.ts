@@ -93,9 +93,26 @@ export interface Course {
   key_concepts?: KeyConcept[]
   flashcards?: Flashcard[]
   quiz_questions?: QuizQuestion[]
+  exam_content?: ExamContent
   status: CourseStatus
   created_at: string
   updated_at: string
+}
+
+export interface ExamContent {
+  title: string
+  duration: number
+  instructions: string
+  sections: {
+    title: string
+    questions: {
+      id: string
+      question: string
+      type: 'mcq' | 'open' | 'true_false'
+      options: string[]
+      points: number
+    }[]
+  }[]
 }
 
 export interface Exam_ {

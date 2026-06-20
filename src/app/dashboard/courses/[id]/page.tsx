@@ -21,73 +21,87 @@ export default function CoursePage() {
     load()
   }, [id, supabase])
 
-  if (loading) return <div className="min-h-screen bg-indigo-950 flex items-center justify-center text-white">⏳ Chargement...</div>
-  if (!course)  return <div className="min-h-screen bg-indigo-950 flex items-center justify-center text-white">Cours introuvable</div>
+  if (loading) return <div className="flex items-center justify-center py-32 text-ink-400">⏳ Chargement...</div>
+  if (!course)  return <div className="flex items-center justify-center py-32 text-ink-400">Cours introuvable</div>
+
+  const cards = [
+    { href: `flashcards`, icon: '🃏', label: 'Flashcards', count: course.flashcards?.length },
+    { href: `quiz`,       icon: '❓', label: 'Quiz',       count: course.quiz_questions?.length },
+    { href: `exam`,       icon: '📝', label: 'Crash Test', count: course.exam_content ? 1 : null },
+    { href: `/dashboard/planner`, icon: '📅', label: 'Planner', count: null },
+  ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-purple-900 text-white">
-      <div className="max-w-4xl mx-auto px-6 py-10">
-        <div className="flex items-center gap-4 mb-8">
-          <Link href="/dashboard" className="text-purple-300 hover:text-white">← Retour</Link>
-          <h1 className="text-3xl font-bold">{course.title}</h1>
-          <span className="bg-purple-500/30 text-purple-200 text-sm px-3 py-1 rounded-full">{course.subject}</span>
-        </div>
+    <div className="animate-fade-in">
+      <div className="flex items-center gap-4 mb-8 flex-wrap">
+        <Link href="/dashboard" className="text-ink-400 hover:text-ink-700 transition-colors">← Retour</Link>
+        <h1 className="font-serif text-3xl font-semibold text-ink-800">{course.title}</h1>
+        <span className="badge bg-primary-100 text-primary-700">{course.subject}</span>
+      </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          {[
-            { href: `flashcards`, icon: '🃏', label: 'Flashcards', count: course.flashcards?.length },
-            { href: `quiz`,       icon: '❓',        label: 'Quiz',       count: course.quiz_questions?.length },
-            { href: `exam`,       icon: '📝',       label: 'Crash Test', count: null },
-            { href: `/dashboard/planner`, icon: '📅', label: 'Planner', count: null },
-          ].map(({ href, icon, label, count }) => (
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        {cards.map(({ href, icon, label, count }) => {
+          const hasContent = count != null && count > 0
+          return (
             <Link key={label}
               href={href.startsWith('/') ? href : `/dashboard/courses/${id}/${href}`}
-              className="bg-white/10 hover:bg-white/20 backdrop-blur border border-white/20 rounded-2xl p-5 text-center transition-all group">
+              className="card text-center hover:shadow-[0_2px_8px_rgba(43,38,32,0.1),0_8px_24px_rgba(43,38,32,0.08)] transition-all group">
               <div className="text-3xl mb-2">{icon}</div>
-              <div className="font-semibold group-hover:text-purple-300 transition-colors">{label}</div>
-              {count != null && <div className="text-purple-400 text-xs mt-1">{count} éléments</div>}
+              <div className="font-medium text-ink-700 group-hover:text-primary-600 transition-colors">{label}</div>
+              {hasContent
+                ? <div className="text-primary-500 text-xs mt-1">{count} éléments</div>
+                : <div className="text-ink-400 text-xs mt-1">Pas encore généré</div>}
             </Link>
+          )
+        })}
+      </div>
+
+      {(!course.flashcards?.length && !course.quiz_questions?.length && !course.exam_content) && (
+        <Link href={`/dashboard/courses/${id}/generate`}
+          className="block mb-8 text-center btn-secondary py-3">
+          ✨ Générer des flashcards, un quiz ou un crash test
+        </Link>
+      )}
+
+      <div className="card !p-0 overflow-hidden">
+        <div className="flex border-b border-ink-700/10">
+          {(['summary', 'glossary', 'concepts'] as const).map(tab => (
+            <button key={tab} onClick={() => setActiveTab(tab)}
+              className={`px-6 py-3 text-sm font-medium transition-all ${
+                activeTab === tab
+                  ? 'text-ink-800 border-b-2 border-primary-500'
+                  : 'text-ink-400 hover:text-ink-600'
+              }`}>
+              {tab === 'summary' ? '📄 Résumé' : tab === 'glossary' ? '📖 Glossaire' : '💡 Concepts'}
+            </button>
           ))}
         </div>
-
-        <div className="bg-white/10 backdrop-blur border border-white/20 rounded-2xl overflow-hidden">
-          <div className="flex border-b border-white/10">
-            {(['summary', 'glossary', 'concepts'] as const).map(tab => (
-              <button key={tab} onClick={() => setActiveTab(tab)}
-                className={`px-6 py-3 text-sm font-medium transition-all ${
-                  activeTab === tab ? 'bg-purple-600 text-white' : 'text-purple-300 hover:text-white'
-                }`}>
-                {tab === 'summary' ? '📄 Résumé' : tab === 'glossary' ? '📖 Glossaire' : '💡 Concepts'}
-              </button>
-            ))}
-          </div>
-          <div className="p-6">
-            {activeTab === 'summary' && (
-              <div className="prose prose-invert max-w-none">
-                <p className="text-purple-100 leading-relaxed whitespace-pre-wrap">{course.summary || 'Résumé non disponible'}</p>
-              </div>
-            )}
-            {activeTab === 'glossary' && (
-              <div className="space-y-3">
-                {course.glossary?.map((g, i) => (
-                  <div key={i} className="bg-white/5 rounded-xl p-4">
-                    <span className="font-semibold text-purple-300">{g.term}</span>
-                    <span className="text-purple-200"> — {g.definition}</span>
-                  </div>
-                )) || <p className="text-purple-400">Glossaire non disponible</p>}
-              </div>
-            )}
-            {activeTab === 'concepts' && (
-              <div className="space-y-3">
-                {course.key_concepts?.map((c, i) => (
-                  <div key={i} className="bg-white/5 rounded-xl p-4">
-                    <div className="font-semibold text-purple-300 mb-1">{c.concept}</div>
-                    <div className="text-purple-200 text-sm">{c.explanation}</div>
-                  </div>
-                )) || <p className="text-purple-400">Concepts non disponibles</p>}
-              </div>
-            )}
-          </div>
+        <div className="p-6">
+          {activeTab === 'summary' && (
+            <div className="prose max-w-none">
+              <p className="text-ink-600 leading-relaxed whitespace-pre-wrap">{course.summary || 'Résumé non disponible'}</p>
+            </div>
+          )}
+          {activeTab === 'glossary' && (
+            <div className="space-y-3">
+              {course.glossary?.length ? course.glossary.map((g, i) => (
+                <div key={i} className="bg-paper-200/60 rounded-xl p-4">
+                  <span className="font-semibold text-ink-800">{g.term}</span>
+                  <span className="text-ink-500"> — {g.definition}</span>
+                </div>
+              )) : <p className="text-ink-400">Glossaire non disponible</p>}
+            </div>
+          )}
+          {activeTab === 'concepts' && (
+            <div className="space-y-3">
+              {course.key_concepts?.length ? course.key_concepts.map((c, i) => (
+                <div key={i} className="bg-paper-200/60 rounded-xl p-4">
+                  <div className="font-semibold text-ink-800 mb-1">{c.concept}</div>
+                  <div className="text-ink-500 text-sm">{c.explanation}</div>
+                </div>
+              )) : <p className="text-ink-400">Concepts non disponibles</p>}
+            </div>
+          )}
         </div>
       </div>
     </div>

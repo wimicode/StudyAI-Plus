@@ -120,9 +120,16 @@ export default function SourcesPage() {
     if (!courseTitle.trim()) { setError('Donne un titre au cours.'); return }
     setLoading(true); setError(null)
     try {
+      // On envoie le token explicitement en header, en plus du cookie :
+      // ça évite les erreurs "Auth session missing!" si le cookie de session
+      // n'est pas correctement transmis/lu côté serveur.
+      const { data: { session } } = await supabase.auth.getSession()
       const res = await fetch('/api/sources/ingest', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
         body: JSON.stringify({ sources, courseTitle, subject, level, lang }),
       })
       if (!res.ok) throw new Error(await res.text())

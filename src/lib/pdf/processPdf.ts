@@ -83,19 +83,30 @@ export async function processPdfClientSide(
   const pageTexts: string[] = []
   for (let i = 1; i <= pageCount; i++) {
     onProgress?.(i, pageCount)
+
+    // Pause entre chaque page pour rester sous la limite Groq (8000 tokens/min
+    // sur le tier gratuit — une page en vision peut consommer ~7000 tokens).
+    if (i > 1) {
+      await new Promise((resolve) => setTimeout(resolve, 9_000))
+    }
+
     const jpegBase64 = await renderPageToJpeg(file, i)
 
     const res = await fetch('/api/sources/ocr-page', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ imageBase64: jpegBase64 }),
-      signal: AbortSignal.timeout(55_000), // évite un blocage indéfini si NVIDIA ne répond pas
+      signal: AbortSignal.timeout(55_000), // évite un blocage indéfini si l'IA ne répond pas
     }).catch((err) => {
       if (err.name === 'TimeoutError') {
         throw new Error(`La lecture de la page ${i} a pris trop de temps (>55s) — réessaie, ou avec un PDF plus court.`)
       }
       throw err
     })
+
+    if (res.status === 429) {
+      throw new Error(`Limite de débit IA atteinte à la page ${i} — réessaie dans une minute (le tier gratuit a un quota par minute).`)
+    }
 
     let data: { text?: string; error?: string }
     try {

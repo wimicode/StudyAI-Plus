@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient as createServerClient } from '@/lib/supabase/server';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { analyzeSources, generateFlashcards, generateQuiz } from '@/lib/ai/client';
 import type { SourceType } from '@/types';
 
@@ -15,17 +16,23 @@ export async function POST(req: NextRequest) {
   let courseId: string | undefined;
 
   try {
-    const allCookies = req.cookies.getAll().map(c => c.name)
-    console.log('[ingest] cookies reçus:', allCookies)
-    supabase = await createClient();
+    supabase = await createServerClient();
     let { data: { user }, error: authError } = await supabase.auth.getUser();
 
     // Fallback : si le cookie de session est absent/invalide côté serveur,
-    // on retente avec le token Bearer envoyé explicitement par le frontend.
+    // on reconstruit un client Supabase avec le token Bearer envoyé par le
+    // frontend, attaché à TOUTES ses requêtes (pas juste à la vérification
+    // d'identité) — sinon les INSERT échouent avec une erreur RLS (auth.uid()
+    // resterait NULL pour le client basé sur cookies).
     if (!user) {
       const authHeader = req.headers.get('authorization')
       const bearerToken = authHeader?.replace('Bearer ', '')
       if (bearerToken) {
+        supabase = createSupabaseClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          { global: { headers: { Authorization: `Bearer ${bearerToken}` } } }
+        )
         const result = await supabase.auth.getUser(bearerToken)
         user = result.data.user
         authError = result.error

@@ -110,12 +110,12 @@ export async function POST(req: NextRequest) {
     const combinedContent = sourcesForAI.map((s) => s.content).join('\n\n---\n\n')
       || `${course.title} - ${course.subject}`;
 
-    // 4. Générer le contenu IA en parallèle
-    const [analysis, flashcards, quiz] = await Promise.all([
-      analyzeSources(sourcesForAI, course.subject, course.level, course.language),
-      generateFlashcards(combinedContent, course.subject, course.level, course.language),
-      generateQuiz(combinedContent, course.subject, course.level, course.language),
-    ]);
+    // 4. Générer le contenu IA en SÉQUENTIEL (pas en parallèle) pour rester
+    //    sous la limite de débit Groq (12000 tokens/min sur le tier gratuit) —
+    //    3 appels simultanés dépassaient facilement cette limite d'un coup.
+    const analysis = await analyzeSources(sourcesForAI, course.subject, course.level, course.language);
+    const flashcards = await generateFlashcards(combinedContent, course.subject, course.level, course.language);
+    const quiz = await generateQuiz(combinedContent, course.subject, course.level, course.language);
 
     // 5. Mettre à jour le cours avec les résultats IA
     const { error: updateError } = await supabase.from('courses').update({

@@ -167,8 +167,14 @@ export async function generateFlashcards(
   subject: string,
   level: string,
   language: string,
-  count = 20
+  count = 20,
+  difficulty: 'easy' | 'medium' | 'hard' | 'mixed' = 'mixed',
+  instructions = ''
 ) {
+  const difficultyLine = difficulty === 'mixed'
+    ? 'Mélange les niveaux de difficulté (easy/medium/hard).'
+    : `Toutes les flashcards doivent être de difficulté "${difficulty}".`
+
   const raw = await chat([
     { role: 'system', content: 'Tu es un assistant pédagogique. Réponds UNIQUEMENT en JSON valide.' },
     {
@@ -176,6 +182,9 @@ export async function generateFlashcards(
       content: `Génère ${count} flashcards pour "${subject}" (niveau: ${level}, langue: ${language}) basées sur ce contenu:
 
 ${content.slice(0, 6000)}
+
+${difficultyLine}
+${instructions ? `Instructions supplémentaires de l'utilisateur : ${instructions}` : ''}
 
 JSON attendu: [{"front": "", "back": "", "difficulty": "easy|medium|hard"}]`,
     },
@@ -191,8 +200,15 @@ export async function generateQuiz(
   subject: string,
   level: string,
   language: string,
-  count = 10
+  count = 10,
+  difficulty: 'easy' | 'medium' | 'hard' | 'mixed' = 'mixed',
+  numChoices = 4,
+  instructions = ''
 ) {
+  const difficultyLine = difficulty === 'mixed'
+    ? 'Mélange les niveaux de difficulté (easy/medium/hard).'
+    : `Toutes les questions doivent être de difficulté "${difficulty}".`
+
   const raw = await chat([
     { role: 'system', content: 'Tu es un assistant pédagogique. Réponds UNIQUEMENT en JSON valide.' },
     {
@@ -200,6 +216,10 @@ export async function generateQuiz(
       content: `Génère ${count} questions de quiz pour "${subject}" (niveau: ${level}, langue: ${language}) basées sur:
 
 ${content.slice(0, 6000)}
+
+${difficultyLine}
+Chaque question à choix multiples doit avoir exactement ${numChoices} options.
+${instructions ? `Instructions supplémentaires de l'utilisateur : ${instructions}` : ''}
 
 JSON attendu:
 [{
@@ -222,7 +242,8 @@ export async function generateExam(
   subject: string,
   level: string,
   language: string,
-  durationMinutes = 60
+  durationMinutes = 60,
+  userInstructions = ''
 ) {
   const raw = await chat([
     { role: 'system', content: 'Tu es un professeur. Réponds UNIQUEMENT en JSON valide.' },
@@ -232,6 +253,8 @@ export async function generateExam(
 
 Contenu de référence:
 ${content.slice(0, 6000)}
+
+${userInstructions ? `Instructions supplémentaires de l'utilisateur : ${userInstructions}` : ''}
 
 JSON attendu:
 {

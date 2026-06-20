@@ -48,27 +48,28 @@ function parseJSON<T>(raw: string, fallback: T): T {
 
 // ============================================================
 // VISION OCR – lit le texte (imprimé ou manuscrit) dans une image
-// via NVIDIA NIM (Llama 3.2 Vision). Utilisé pour les PDF scannés.
-// Configure via: NVIDIA_API_KEY (clé obtenue sur build.nvidia.com)
+// via Groq (Qwen 3.6 27B Vision). Utilisé pour les PDF scannés.
+// Réutilise la même clé que le LLM texte (LLM_API_KEY) si elle
+// pointe déjà vers Groq, sinon configure GROQ_API_KEY séparément.
 // ============================================================
-const NVIDIA_API_URL = 'https://integrate.api.nvidia.com/v1/chat/completions'
-const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY || ''
-const NVIDIA_VISION_MODEL = 'meta/llama-3.2-11b-vision-instruct'
+const GROQ_VISION_API_URL = 'https://api.groq.com/openai/v1/chat/completions'
+const GROQ_VISION_API_KEY = process.env.GROQ_API_KEY || process.env.LLM_API_KEY || ''
+const GROQ_VISION_MODEL = 'qwen/qwen3.6-27b'
 
 export async function visionOcr(imageBase64: string, mimeType: 'image/png' | 'image/jpeg' = 'image/jpeg'): Promise<string> {
-  if (!NVIDIA_API_KEY) {
-    throw new Error('NVIDIA_API_KEY manquante — impossible de lire les PDF scannés/manuscrits.')
+  if (!GROQ_VISION_API_KEY) {
+    throw new Error('GROQ_API_KEY (ou LLM_API_KEY) manquante — impossible de lire les PDF scannés/manuscrits.')
   }
 
-  const res = await fetch(NVIDIA_API_URL, {
+  const res = await fetch(GROQ_VISION_API_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${NVIDIA_API_KEY}`,
+      Authorization: `Bearer ${GROQ_VISION_API_KEY}`,
     },
     signal: AbortSignal.timeout(50_000), // sous la limite maxDuration de 60s de la route
     body: JSON.stringify({
-      model: NVIDIA_VISION_MODEL,
+      model: GROQ_VISION_MODEL,
       messages: [
         {
           role: 'user',
@@ -91,7 +92,7 @@ export async function visionOcr(imageBase64: string, mimeType: 'image/png' | 'im
 
   if (!res.ok) {
     const err = await res.text()
-    throw new Error(`NVIDIA Vision API error ${res.status}: ${err}`)
+    throw new Error(`Groq Vision API error ${res.status}: ${err}`)
   }
 
   const data = await res.json()

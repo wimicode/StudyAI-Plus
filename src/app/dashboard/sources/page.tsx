@@ -135,7 +135,7 @@ export default function SourcesPage() {
       })
       if (!res.ok) throw new Error(await res.text())
       const { courseId } = await res.json()
-      router.push(`/dashboard/courses/${courseId}`)
+      router.push(`/dashboard/courses/${courseId}/generate`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur inconnue')
       setLoading(false)

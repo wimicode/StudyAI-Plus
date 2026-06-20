@@ -3,6 +3,10 @@ import { createClient } from '@/lib/supabase/server';
 import { analyzeSources, generateFlashcards, generateQuiz } from '@/lib/ai/client';
 import type { SourceType } from '@/types';
 
+// 3 appels LLM en parallèle (analyse + flashcards + quiz) peuvent dépasser
+// le défaut Vercel de 10s. On l'étend au maximum autorisé sur Hobby.
+export const maxDuration = 60;
+
 type IncomingSource = { type: SourceType; value: string; title: string };
 
 export async function POST(req: NextRequest) {
@@ -129,6 +133,7 @@ export async function POST(req: NextRequest) {
       await supabase.from('courses').update({ status: 'error' }).eq('id', courseId).eq('user_id', userId);
       await supabase.from('sources').update({ status: 'error' }).eq('course_id', courseId).eq('user_id', userId);
     }
-    return NextResponse.json({ error: 'Erreur serveur lors de la génération IA' }, { status: 500 });
+    const debugMessage = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: 'Erreur serveur lors de la génération IA', debug: debugMessage }, { status: 500 });
   }
 }

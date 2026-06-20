@@ -23,6 +23,44 @@ export type PdfProcessResult = {
 
 const MIN_NATIVE_TEXT_LENGTH = 20
 
+/** Tente l'OCR d'une page, avec retry automatique si Groq répond 429 (rate limit) */
+async function ocrPageWithRetry(jpegBase64: string, pageNumber: number, attempt = 1): Promise<string> {
+  const MAX_ATTEMPTS = 3
+
+  const res = await fetch('/api/sources/ocr-page', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ imageBase64: jpegBase64 }),
+    signal: AbortSignal.timeout(55_000), // évite un blocage indéfini si l'IA ne répond pas
+  }).catch((err) => {
+    if (err.name === 'TimeoutError') {
+      throw new Error(`La lecture de la page ${pageNumber} a pris trop de temps (>55s) — réessaie, ou avec un PDF plus court.`)
+    }
+    throw err
+  })
+
+  if (res.status === 429) {
+    if (attempt >= MAX_ATTEMPTS) {
+      throw new Error(`Limite de débit IA atteinte à la page ${pageNumber} après ${MAX_ATTEMPTS} tentatives — réessaie dans une minute.`)
+    }
+    const errBody = await res.json().catch(() => ({}))
+    // Le message Groq contient "Please try again in 4.94s" — on extrait ce délai
+    const match = /try again in ([\d.]+)s/.exec(errBody?.error ?? '')
+    const waitSeconds = match ? parseFloat(match[1]) + 1 : 15 // +1s de marge de sécurité
+    await new Promise((resolve) => setTimeout(resolve, waitSeconds * 1000))
+    return ocrPageWithRetry(jpegBase64, pageNumber, attempt + 1)
+  }
+
+  let data: { text?: string; error?: string }
+  try {
+    data = await res.json()
+  } catch {
+    throw new Error(`Erreur serveur inattendue page ${pageNumber} (code ${res.status}).`)
+  }
+  if (!res.ok) throw new Error(data.error || `Erreur OCR page ${pageNumber}`)
+  return data.text ?? ''
+}
+
 async function loadPdf(file: File) {
   ensureWorker()
   const buffer = await file.arrayBuffer()
@@ -84,38 +122,15 @@ export async function processPdfClientSide(
   for (let i = 1; i <= pageCount; i++) {
     onProgress?.(i, pageCount)
 
-    // Pause entre chaque page pour rester sous la limite Groq (8000 tokens/min
-    // sur le tier gratuit — une page en vision peut consommer ~7000 tokens).
+    // Pause de base entre chaque page pour rester sous la limite Groq
+    // (8000 tokens/min sur le tier gratuit — une page consomme ~4500 tokens).
     if (i > 1) {
-      await new Promise((resolve) => setTimeout(resolve, 9_000))
+      await new Promise((resolve) => setTimeout(resolve, 20_000))
     }
 
     const jpegBase64 = await renderPageToJpeg(file, i)
-
-    const res = await fetch('/api/sources/ocr-page', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ imageBase64: jpegBase64 }),
-      signal: AbortSignal.timeout(55_000), // évite un blocage indéfini si l'IA ne répond pas
-    }).catch((err) => {
-      if (err.name === 'TimeoutError') {
-        throw new Error(`La lecture de la page ${i} a pris trop de temps (>55s) — réessaie, ou avec un PDF plus court.`)
-      }
-      throw err
-    })
-
-    if (res.status === 429) {
-      throw new Error(`Limite de débit IA atteinte à la page ${i} — réessaie dans une minute (le tier gratuit a un quota par minute).`)
-    }
-
-    let data: { text?: string; error?: string }
-    try {
-      data = await res.json()
-    } catch {
-      throw new Error(`Erreur serveur inattendue page ${i} (code ${res.status}).`)
-    }
-    if (!res.ok) throw new Error(data.error || `Erreur OCR page ${i}`)
-    if (data.text) pageTexts.push(`[Page ${i}]\n${data.text}`)
+    const text = await ocrPageWithRetry(jpegBase64, i)
+    if (text) pageTexts.push(`[Page ${i}]\n${text}`)
   }
 
   const ocrText = pageTexts.join('\n\n').trim()

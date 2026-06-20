@@ -127,13 +127,29 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, courseId: course.id });
   } catch (error) {
-    console.error('[ingest] error:', error);
+    // Log complet et brut, visible dans Vercel Runtime Logs
+    console.error('[ingest] RAW ERROR:', error);
+    console.error('[ingest] error keys:', error && typeof error === 'object' ? Object.keys(error) : 'n/a');
+    console.error('[ingest] error stringified:', JSON.stringify(error, Object.getOwnPropertyNames(error || {})));
+
     // Marquer le cours en erreur si on a réussi à le créer
     if (supabase && courseId && userId) {
       await supabase.from('courses').update({ status: 'error' }).eq('id', courseId).eq('user_id', userId);
       await supabase.from('sources').update({ status: 'error' }).eq('course_id', courseId).eq('user_id', userId);
     }
-    const debugMessage = error instanceof Error ? error.message : String(error);
+
+    // Construction du message de debug la plus robuste possible :
+    // capture TOUTES les propriétés énumérables ET non-énumérables (comme .message et .stack sur Error)
+    let debugMessage: string;
+    try {
+      debugMessage = JSON.stringify(error, Object.getOwnPropertyNames(error || {})) || String(error);
+    } catch {
+      debugMessage = String(error);
+    }
+    if (debugMessage === '{}' || debugMessage === 'undefined') {
+      debugMessage = String(error);
+    }
+
     return NextResponse.json({ error: 'Erreur serveur lors de la génération IA', debug: debugMessage }, { status: 500 });
   }
 }

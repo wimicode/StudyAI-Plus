@@ -123,7 +123,8 @@ export default function SourcesPage() {
       // On envoie le token explicitement en header, en plus du cookie :
       // ça évite les erreurs "Auth session missing!" si le cookie de session
       // n'est pas correctement transmis/lu côté serveur.
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      console.log('[handleSubmit] session présente:', !!session, '| token présent:', !!session?.access_token, '| erreur session:', sessionError?.message ?? 'aucune')
       const res = await fetch('/api/sources/ingest', {
         method: 'POST',
         headers: {

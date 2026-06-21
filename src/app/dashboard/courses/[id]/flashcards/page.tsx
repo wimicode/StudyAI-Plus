@@ -31,52 +31,62 @@ export default function FlashcardsPage() {
     })
   }
 
-  if (loading) return <div className="min-h-screen bg-indigo-950 flex items-center justify-center text-white">⏳</div>
+  if (loading) return <div className="flex items-center justify-center py-32 text-ink-400">⏳ Chargement...</div>
+
   if (cards.length === 0) return (
-    <div className="min-h-screen bg-indigo-950 flex flex-col items-center justify-center text-white gap-4">
-      <p>Aucune flashcard disponible.</p>
-      <Link href={`/dashboard/courses/${id}`} className="text-purple-400 underline">Retour au cours</Link>
+    <div className="flex flex-col items-center justify-center py-32 gap-4 text-center">
+      <div className="text-5xl">🃏</div>
+      <p className="text-ink-500">Aucune flashcard disponible pour ce cours.</p>
+      <Link href={`/dashboard/courses/${id}/generate`} className="btn-primary px-6 py-3">
+        ✨ Générer des flashcards
+      </Link>
     </div>
   )
 
   const card = cards[current]
+  // Légère rotation sur la carte (pas d'info importante dessus), pour rappeler
+  // l'esthétique fiche du reste du site — alternée selon l'index.
+  const cardTilt = current % 2 === 0 ? '-0.6deg' : '0.5deg'
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-purple-900 text-white flex flex-col items-center justify-center px-6">
-      <div className="w-full max-w-xl">
-        <div className="flex items-center justify-between mb-6">
-          <Link href={`/dashboard/courses/${id}`} className="text-purple-300 hover:text-white">← Retour</Link>
-          <span className="text-purple-300 text-sm">{current + 1} / {cards.length} • {mastered.size} maîtrisées</span>
-        </div>
+    <div className="animate-fade-in max-w-xl mx-auto">
+      <div className="flex items-center justify-between mb-6">
+        <Link href={`/dashboard/courses/${id}`} className="text-ink-400 hover:text-ink-700 transition-colors">← Retour</Link>
+        <span className="text-ink-400 text-sm">{current + 1} / {cards.length} • {mastered.size} maîtrisées</span>
+      </div>
 
-        <div className="bg-white/10 border border-white/20 rounded-3xl p-8 text-center cursor-pointer select-none min-h-64 flex flex-col items-center justify-center transition-all hover:bg-white/15"
-          onClick={() => setFlipped(f => !f)}>
-          <div className="text-xs text-purple-400 mb-4">{flipped ? '🔙 Verso' : '📌 Recto'} — cliquer pour retourner</div>
-          <p className="text-xl font-semibold leading-relaxed">{flipped ? card.back : card.front}</p>
-        </div>
+      <div
+        className="card text-center cursor-pointer select-none min-h-64 flex flex-col items-center justify-center hover:shadow-[0_2px_8px_rgba(43,38,32,0.1),0_8px_24px_rgba(43,38,32,0.08)] transition-all"
+        style={{ transform: `rotate(${cardTilt})` }}
+        onClick={() => setFlipped(f => !f)}
+      >
+        <div className="text-xs text-ink-400 mb-4">{flipped ? '🔙 Verso' : '📌 Recto'} — cliquer pour retourner</div>
+        <p className="text-xl font-serif font-semibold leading-relaxed text-ink-800">{flipped ? card.back : card.front}</p>
+      </div>
 
-        <div className="flex gap-3 mt-6">
-          <button onClick={() => { setCurrent(c => Math.max(0, c - 1)); setFlipped(false) }}
-            disabled={current === 0}
-            className="flex-1 bg-white/10 hover:bg-white/20 disabled:opacity-30 py-3 rounded-xl transition-all">
-            ← Préc
-          </button>
-          <button onClick={toggleMastered}
-            className={`flex-1 py-3 rounded-xl font-medium transition-all ${
-              mastered.has(current) ? 'bg-green-600 hover:bg-green-500' : 'bg-white/10 hover:bg-white/20'
-            }`}>
-            {mastered.has(current) ? '✅ Maîtrisée' : '⭐ Maîtriser'}
-          </button>
-          <button onClick={() => { setCurrent(c => Math.min(cards.length - 1, c + 1)); setFlipped(false) }}
-            disabled={current === cards.length - 1}
-            className="flex-1 bg-white/10 hover:bg-white/20 disabled:opacity-30 py-3 rounded-xl transition-all">
-            Suiv →
-          </button>
-        </div>
+      <div className="flex gap-3 mt-6">
+        <button onClick={() => { setCurrent(c => Math.max(0, c - 1)); setFlipped(false) }}
+          disabled={current === 0}
+          className="btn-secondary flex-1 py-3 disabled:opacity-30">
+          ← Préc
+        </button>
+        <button onClick={toggleMastered}
+          className={`flex-1 py-3 rounded-lg font-medium transition-all ${
+            mastered.has(current)
+              ? 'bg-brand-500 text-paper-50 hover:bg-brand-600'
+              : 'btn-secondary'
+          }`}>
+          {mastered.has(current) ? '✅ Maîtrisée' : '⭐ Maîtriser'}
+        </button>
+        <button onClick={() => { setCurrent(c => Math.min(cards.length - 1, c + 1)); setFlipped(false) }}
+          disabled={current === cards.length - 1}
+          className="btn-secondary flex-1 py-3 disabled:opacity-30">
+          Suiv →
+        </button>
+      </div>
 
-        <div className="mt-4 bg-white/5 rounded-full h-2">
-          <div className="bg-purple-500 h-2 rounded-full transition-all" style={{ width: `${((current + 1) / cards.length) * 100}%` }} />
-        </div>
+      <div className="mt-4 bg-paper-200 rounded-full h-2">
+        <div className="bg-primary-500 h-2 rounded-full transition-all" style={{ width: `${((current + 1) / cards.length) * 100}%` }} />
       </div>
     </div>
   )

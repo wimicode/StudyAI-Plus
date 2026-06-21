@@ -3,6 +3,7 @@
 // Compatible with any OpenAI-style API
 // Configure via: LLM_API_URL, LLM_API_KEY, LLM_MODEL
 // ============================================================
+import type { ExamContent } from '@/types'
 
 const LLM_API_URL = process.env.LLM_API_URL || 'https://api.openai.com/v1/chat/completions'
 const LLM_API_KEY = process.env.LLM_API_KEY || ''
@@ -152,7 +153,7 @@ export async function analyzeSources(
   const raw = await chat([
     {
       role: 'system',
-      content: `Tu es un assistant pédagogique expert. Réponds UNIQUEMENT en JSON valide, sans texte avant ni après.`,
+      content: `Tu es un assistant pédagogique expert. Réponds UNIQUEMENT en JSON valide, sans texte avant ni après, sans balises markdown \`\`\`.`,
     },
     {
       role: 'user',
@@ -161,9 +162,18 @@ export async function analyzeSources(
 Sources:
 ${sourcesText}
 
-Génère un JSON avec cette structure EXACTE:
+Génère un JSON avec EXACTEMENT cette structure. Respecte bien la différence entre glossary et key_concepts :
+
+- "glossary" = liste de MOTS ou TERMES TECHNIQUES courts (1 à 4 mots), chacun avec une définition brève (1-2 phrases). C'est un dictionnaire de vocabulaire, comme en fin de manuel scolaire.
+  Exemple : {"term": "Photosynthèse", "definition": "Processus chimique par lequel les plantes convertissent la lumière en énergie."}
+
+- "key_concepts" = liste des IDÉES ou MÉCANISMES IMPORTANTS du cours, expliqués en détail (3-5 phrases), pas juste un mot. C'est ce qu'il faut comprendre en profondeur, pas juste retenir une définition.
+  Exemple : {"concept": "Le cycle de Krebs et la production d'énergie", "explanation": "Le cycle de Krebs est une série de réactions chimiques qui se déroulent dans la mitochondrie. Il permet d'extraire l'énergie des nutriments en produisant du NADH et du FADH2, qui seront ensuite utilisés dans la chaîne respiratoire pour produire de l'ATP. Ce processus est central pour comprendre comment les cellules produisent leur énergie.", "difficulty": "medium"}
+
+Ne mets JAMAIS le même contenu dans glossary et key_concepts — glossary = vocabulaire court, key_concepts = explications détaillées.
+
 {
-  "summary": "résumé HTML structuré avec titres h2/h3 et paragraphes",
+  "summary": "résumé HTML structuré avec balises <h2>, <h3>, <p>, <ul><li> — pas de markdown",
   "glossary": [{"term": "", "definition": ""}],
   "key_concepts": [{"concept": "", "explanation": "", "difficulty": "easy|medium|hard"}]
 }`,
@@ -263,7 +273,7 @@ export async function generateExam(
   userInstructions = ''
 ) {
   const raw = await chat([
-    { role: 'system', content: 'Tu es un professeur. Réponds UNIQUEMENT en JSON valide.' },
+    { role: 'system', content: 'Tu es un professeur. Réponds UNIQUEMENT en JSON valide, sans markdown.' },
     {
       role: 'user',
       content: `Génère un examen blanc de ${durationMinutes} minutes pour "${subject}" (niveau: ${level}, langue: ${language}).
@@ -272,6 +282,13 @@ Contenu de référence:
 ${content.slice(0, 6000)}
 
 ${userInstructions ? `Instructions supplémentaires de l'utilisateur : ${userInstructions}` : ''}
+
+RÈGLES IMPORTANTES :
+- Chaque question a une "difficulty" parmi "easy", "medium", "hard".
+- Les "points" dépendent de la difficulté, pas du type de question : easy = 1 point, medium = 2 points, hard = 3 points.
+- Pour les questions "mcq" et "true_false", inclus le champ "correctAnswer" avec la bonne réponse exacte (doit correspondre à une valeur de "options").
+- Pour les questions "open" (réponse libre), NE PAS mettre "correctAnswer" — la correction se fera séparément par analyse sémantique de la réponse de l'élève.
+- Mélange des questions de difficultés variées dans l'examen.
 
 JSON attendu:
 {
@@ -285,13 +302,15 @@ JSON attendu:
       "question": "",
       "type": "mcq|open|true_false",
       "options": [],
+      "correctAnswer": "",
+      "difficulty": "easy|medium|hard",
       "points": 0
     }]
   }]
 }`,
     },
   ])
-  return parseJSON(raw, { title: '', duration: durationMinutes, instructions: '', sections: [] })
+  return parseJSON<ExamContent>(raw, { title: '', duration: durationMinutes, instructions: '', sections: [] })
 }
 
 // ============================================================
@@ -365,4 +384,45 @@ JSON attendu:
     },
   ])
   return parseJSON(raw, [])
+}
+
+// ============================================================
+// GRADE OPEN ANSWER – corrige une réponse libre par analyse sémantique
+// (accepte une idée juste même si elle n'est pas formulée comme le cours,
+// et peut attribuer un score partiel comme 1.5/2 si l'idée est juste mais
+// insuffisamment développée).
+// ============================================================
+export async function gradeOpenAnswer(
+  question: string,
+  studentAnswer: string,
+  maxPoints: number,
+  courseContent: string,
+  language: string
+) {
+  if (!studentAnswer.trim()) {
+    return { score: 0, maxPoints, feedback: 'Aucune réponse fournie.' }
+  }
+
+  const raw = await chat([
+    {
+      role: 'system',
+      content: `Tu es un correcteur d'examen bienveillant mais rigoureux. Tu évalues le FOND (l'idée, la compréhension) et pas la formulation exacte — une réponse reformulée différemment du cours mais sémantiquement correcte doit recevoir le score maximal. Réponds UNIQUEMENT en JSON valide.`,
+    },
+    {
+      role: 'user',
+      content: `Question (notée sur ${maxPoints} points) : ${question}
+
+Réponse de l'élève : ${studentAnswer}
+
+Contexte du cours (pour vérifier l'exactitude) :
+${courseContent.slice(0, 3000)}
+
+Évalue cette réponse. Le score peut être un nombre décimal (par exemple ${maxPoints / 2} sur ${maxPoints}, ou ${maxPoints - 0.5}) si l'idée est juste mais incomplète ou pas assez développée. Donne un retour court et constructif (1-2 phrases) en ${language}.
+
+JSON attendu:
+{"score": 0, "maxPoints": ${maxPoints}, "feedback": ""}`,
+    },
+  ], 0.3)
+
+  return parseJSON(raw, { score: 0, maxPoints, feedback: 'Correction indisponible.' })
 }

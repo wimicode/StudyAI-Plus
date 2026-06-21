@@ -78,9 +78,10 @@ export default function CoursePage() {
         </div>
         <div className="p-6">
           {activeTab === 'summary' && (
-            <div className="prose max-w-none">
-              <p className="text-ink-600 leading-relaxed whitespace-pre-wrap">{course.summary || 'Résumé non disponible'}</p>
-            </div>
+            course.summary
+              ? <div className="prose max-w-none text-ink-600 leading-relaxed [&_h2]:font-serif [&_h2]:text-xl [&_h2]:text-ink-800 [&_h2]:mt-5 [&_h2]:mb-2 [&_h3]:font-serif [&_h3]:text-lg [&_h3]:text-ink-800 [&_h3]:mt-4 [&_h3]:mb-1.5 [&_p]:mb-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-3 [&_li]:mb-1"
+                  dangerouslySetInnerHTML={{ __html: course.summary }} />
+              : <p className="text-ink-400">Résumé non disponible</p>
           )}
           {activeTab === 'glossary' && (
             <div className="space-y-3">

@@ -170,7 +170,10 @@ Génère un JSON avec cette structure EXACTE:
     },
   ], 0.5)
 
-  return parseJSON(raw, { summary: '', glossary: [], key_concepts: [] })
+  console.log('[analyzeSources] raw response (500 premiers caractères):', raw.slice(0, 500))
+  const result = parseJSON(raw, { summary: '', glossary: [], key_concepts: [] })
+  console.log('[analyzeSources] parsed — summary length:', result.summary?.length, '| glossary:', result.glossary?.length, '| key_concepts:', result.key_concepts?.length)
+  return result
 }
 
 // ============================================================

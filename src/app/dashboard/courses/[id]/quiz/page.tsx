@@ -30,7 +30,7 @@ export default function QuizPage() {
     <div className="flex flex-col items-center justify-center py-32 gap-4 text-center">
       <div className="text-5xl">❓</div>
       <p className="text-ink-500">Aucun quiz disponible pour ce cours.</p>
-      <Link href={`/dashboard/courses/${id}/generate`} className="btn-primary px-6 py-3">
+      <Link href={`/dashboard/courses/${id}/generate/quiz`} className="btn-primary px-6 py-3">
         ✨ Générer un quiz
       </Link>
     </div>

@@ -60,6 +60,8 @@ export interface ExamQuestion {
   question: string
   type: 'mcq' | 'open' | 'true_false'
   options?: string[]
+  correctAnswer?: string // pour mcq/true_false — sert à l'auto-correction
+  difficulty: 'easy' | 'medium' | 'hard'
   points: number
 }
 
@@ -109,7 +111,9 @@ export interface ExamContent {
       id: string
       question: string
       type: 'mcq' | 'open' | 'true_false'
-      options: string[]
+      options?: string[]
+      correctAnswer?: string
+      difficulty: 'easy' | 'medium' | 'hard'
       points: number
     }[]
   }[]

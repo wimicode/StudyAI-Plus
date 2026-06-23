@@ -32,15 +32,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
     if (!user) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
-    const { answers }: { answers: SubmittedAnswers } = await req.json();
+    const { answers, generationId }: { answers: SubmittedAnswers; generationId: string } = await req.json();
 
     const { data: course, error: courseError } = await supabase
       .from('courses').select('*').eq('id', courseId).eq('user_id', user.id).single();
-    if (courseError || !course || !course.exam_content) {
+    if (courseError || !course) {
+      return NextResponse.json({ error: 'Cours introuvable' }, { status: 404 });
+    }
+
+    const { data: generation, error: genError } = await supabase
+      .from('generations').select('*').eq('id', generationId).eq('user_id', user.id).single();
+    if (genError || !generation || generation.type !== 'exam') {
       return NextResponse.json({ error: 'Crash test introuvable' }, { status: 404 });
     }
 
-    const exam = course.exam_content as ExamContent;
+    const exam = generation.content as ExamContent;
     const { data: sources } = await supabase
       .from('sources').select('content_text').eq('course_id', courseId).eq('user_id', user.id);
     const courseContent = (sources ?? []).map((s) => s.content_text || '').join('\n\n').slice(0, 6000)

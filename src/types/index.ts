@@ -19,6 +19,19 @@ export interface Profile {
   created_at: string
 }
 
+export type GenerationType = 'flashcards' | 'quiz' | 'exam'
+
+export interface Generation {
+  id: string
+  user_id: string
+  course_id: string
+  type: GenerationType
+  title: string
+  content: Flashcard[] | QuizQuestion[] | ExamContent
+  settings?: Record<string, unknown>
+  created_at: string
+}
+
 export interface Source {
   id: string
   user_id: string

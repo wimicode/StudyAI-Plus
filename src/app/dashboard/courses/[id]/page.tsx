@@ -9,13 +9,22 @@ export default function CoursePage() {
   const { id } = useParams<{ id: string }>()
   const supabase = createClient()
   const [course, setCourse] = useState<Course | null>(null)
+  const [counts, setCounts] = useState({ flashcards: 0, quiz: 0, exam: 0 })
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'summary' | 'glossary' | 'concepts'>('summary')
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase.from('courses').select('*').eq('id', id).single()
-      setCourse(data)
+      const [{ data: courseData }, { data: gens }] = await Promise.all([
+        supabase.from('courses').select('*').eq('id', id).single(),
+        supabase.from('generations').select('type').eq('course_id', id),
+      ])
+      setCourse(courseData)
+      setCounts({
+        flashcards: (gens ?? []).filter(g => g.type === 'flashcards').length,
+        quiz: (gens ?? []).filter(g => g.type === 'quiz').length,
+        exam: (gens ?? []).filter(g => g.type === 'exam').length,
+      })
       setLoading(false)
     }
     load()
@@ -25,9 +34,9 @@ export default function CoursePage() {
   if (!course)  return <div className="flex items-center justify-center py-32 text-ink-400">Cours introuvable</div>
 
   const cards = [
-    { href: `flashcards`, icon: '🃏', label: 'Flashcards', count: course.flashcards?.length },
-    { href: `quiz`,       icon: '❓', label: 'Quiz',       count: course.quiz_questions?.length },
-    { href: `exam`,       icon: '📝', label: 'Crash Test', count: course.exam_content ? 1 : null },
+    { href: `flashcards`, icon: '🃏', label: 'Flashcards', count: counts.flashcards },
+    { href: `quiz`,       icon: '❓', label: 'Quiz',       count: counts.quiz },
+    { href: `exam`,       icon: '📝', label: 'Crash Test', count: counts.exam },
     { href: `/dashboard/planner`, icon: '📅', label: 'Planner', count: null },
   ]
 
@@ -49,14 +58,14 @@ export default function CoursePage() {
               <div className="text-3xl mb-2">{icon}</div>
               <div className="font-medium text-ink-700 group-hover:text-primary-600 transition-colors">{label}</div>
               {hasContent
-                ? <div className="text-primary-500 text-xs mt-1">{count} éléments</div>
+                ? <div className="text-primary-500 text-xs mt-1">{count} jeu{count > 1 ? 'x' : ''} généré{count > 1 ? 's' : ''}</div>
                 : <div className="text-ink-400 text-xs mt-1">Pas encore généré</div>}
             </Link>
           )
         })}
       </div>
 
-      {(!course.flashcards?.length && !course.quiz_questions?.length && !course.exam_content) && (
+      {(!counts.flashcards && !counts.quiz && !counts.exam) && (
         <Link href={`/dashboard/courses/${id}/generate`}
           className="block mb-8 text-center btn-secondary py-3">
           ✨ Générer des flashcards, un quiz ou un crash test
@@ -75,6 +84,10 @@ export default function CoursePage() {
               {tab === 'summary' ? '📄 Résumé' : tab === 'glossary' ? '📖 Glossaire' : '💡 Concepts'}
             </button>
           ))}
+          <Link href={`/dashboard/courses/${id}/generate/summary`}
+            className="ml-auto px-4 py-3 text-xs text-ink-400 hover:text-primary-600 transition-colors self-center">
+            ⚙️ Réglages
+          </Link>
         </div>
         <div className="p-6">
           {activeTab === 'summary' && (

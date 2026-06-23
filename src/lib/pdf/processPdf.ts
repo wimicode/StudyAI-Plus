@@ -113,7 +113,7 @@ export async function processPdfClientSide(
     return { text: nativeText, pageCount, method: 'text' }
   }
 
-  const MAX_OCR_PAGES = 15
+  const MAX_OCR_PAGES = 25
   if (pageCount > MAX_OCR_PAGES) {
     throw new Error(`Ce PDF scanné fait ${pageCount} pages — la limite pour la lecture par IA est de ${MAX_OCR_PAGES} pages.`)
   }

@@ -14,7 +14,7 @@ interface Message {
   content: string
 }
 
-async function chat(messages: Message[], temperature = 0.7, attempt = 1): Promise<string> {
+async function chat(messages: Message[], temperature = 0.7, maxTokens = 4096, attempt = 1): Promise<string> {
   const MAX_ATTEMPTS = 3
   const res = await fetch(LLM_API_URL, {
     method: 'POST',
@@ -26,7 +26,7 @@ async function chat(messages: Message[], temperature = 0.7, attempt = 1): Promis
       model: LLM_MODEL,
       messages,
       temperature,
-      max_tokens: 4096,
+      max_tokens: maxTokens,
     }),
   })
 
@@ -41,7 +41,7 @@ async function chat(messages: Message[], temperature = 0.7, attempt = 1): Promis
     }
     const waitSeconds = parseFloat(match[1]) + 1 // +1s de marge de sécurité
     await new Promise((resolve) => setTimeout(resolve, waitSeconds * 1000))
-    return chat(messages, temperature, attempt + 1)
+    return chat(messages, temperature, maxTokens, attempt + 1)
   }
 
   if (!res.ok) {
@@ -131,11 +131,29 @@ export async function visionOcr(imageBase64: string, mimeType: 'image/png' | 'im
 // ============================================================
 // ANALYZE SOURCES – fusionne plusieurs sources en un cours
 // ============================================================
+export type SummaryLength = 'short' | 'medium' | 'long'
+export type SummaryPrecision = 'general' | 'detailed' | 'exhaustive'
+
+const LENGTH_GUIDANCE: Record<SummaryLength, string> = {
+  short: 'Résumé concis : 200-400 mots, uniquement les points essentiels.',
+  medium: 'Résumé de longueur moyenne : 500-900 mots, bon équilibre entre concision et détail.',
+  long: 'Résumé TRÈS COMPLET et détaillé : 1200-2000 mots minimum, couvre TOUS les aspects du contenu en profondeur, avec plusieurs sections (h2/h3), des exemples, des explications développées. Ne résume pas superficiellement — explique vraiment chaque notion en détail, même si le contenu source est court (dans ce cas, développe et contextualise davantage).',
+}
+
+const PRECISION_GUIDANCE: Record<SummaryPrecision, string> = {
+  general: 'Reste général, vue d\'ensemble sans entrer dans les détails techniques fins.',
+  detailed: 'Sois précis sur les définitions, chiffres, dates et mécanismes mentionnés dans les sources.',
+  exhaustive: 'Sois exhaustif et rigoureux : reprends toutes les données précises (chiffres, dates, noms, formules, étapes de processus) sans rien omettre.',
+}
+
 export async function analyzeSources(
   sources: Array<{ type: string; content: string; title?: string }>,
   subject: string,
   level: string,
-  language: string
+  language: string,
+  length: SummaryLength = 'long',
+  precision: SummaryPrecision = 'detailed',
+  focusPoints = ''
 ) {
   // Limite Groq : 12000 tokens/min sur le tier gratuit (~4 caractères/token
   // en moyenne pour du français). On laisse de la marge pour le prompt
@@ -162,6 +180,11 @@ export async function analyzeSources(
 Sources:
 ${sourcesText}
 
+CONSIGNES POUR LE RÉSUMÉ :
+- ${LENGTH_GUIDANCE[length]}
+- ${PRECISION_GUIDANCE[precision]}
+${focusPoints ? `- Insiste particulièrement sur : ${focusPoints}` : ''}
+
 Génère un JSON avec EXACTEMENT cette structure. Respecte bien la différence entre glossary et key_concepts :
 
 - "glossary" = liste de MOTS ou TERMES TECHNIQUES courts (1 à 4 mots), chacun avec une définition brève (1-2 phrases). C'est un dictionnaire de vocabulaire, comme en fin de manuel scolaire.
@@ -178,11 +201,9 @@ Ne mets JAMAIS le même contenu dans glossary et key_concepts — glossary = voc
   "key_concepts": [{"concept": "", "explanation": "", "difficulty": "easy|medium|hard"}]
 }`,
     },
-  ], 0.5)
+  ], 0.5, 7000) // max_tokens augmenté pour permettre un résumé long et complet
 
-  console.log('[analyzeSources] raw response (500 premiers caractères):', raw.slice(0, 500))
   const result = parseJSON(raw, { summary: '', glossary: [], key_concepts: [] })
-  console.log('[analyzeSources] parsed — summary length:', result.summary?.length, '| glossary:', result.glossary?.length, '| key_concepts:', result.key_concepts?.length)
   return result
 }
 
@@ -270,13 +291,19 @@ export async function generateExam(
   level: string,
   language: string,
   durationMinutes = 60,
+  questionCount = 10,
+  difficulty: 'easy' | 'medium' | 'hard' | 'mixed' = 'mixed',
   userInstructions = ''
 ) {
+  const difficultyLine = difficulty === 'mixed'
+    ? 'Mélange des questions de difficultés variées (easy/medium/hard).'
+    : `Toutes les questions doivent être de difficulté "${difficulty}".`
+
   const raw = await chat([
     { role: 'system', content: 'Tu es un professeur. Réponds UNIQUEMENT en JSON valide, sans markdown.' },
     {
       role: 'user',
-      content: `Génère un examen blanc de ${durationMinutes} minutes pour "${subject}" (niveau: ${level}, langue: ${language}).
+      content: `Génère un examen blanc de ${durationMinutes} minutes, avec exactement ${questionCount} questions au total, pour "${subject}" (niveau: ${level}, langue: ${language}).
 
 Contenu de référence:
 ${content.slice(0, 6000)}
@@ -284,11 +311,11 @@ ${content.slice(0, 6000)}
 ${userInstructions ? `Instructions supplémentaires de l'utilisateur : ${userInstructions}` : ''}
 
 RÈGLES IMPORTANTES :
-- Chaque question a une "difficulty" parmi "easy", "medium", "hard".
+- ${questionCount} questions au total, répartie sur une ou plusieurs sections.
+- Chaque question a une "difficulty" parmi "easy", "medium", "hard". ${difficultyLine}
 - Les "points" dépendent de la difficulté, pas du type de question : easy = 1 point, medium = 2 points, hard = 3 points.
 - Pour les questions "mcq" et "true_false", inclus le champ "correctAnswer" avec la bonne réponse exacte (doit correspondre à une valeur de "options").
 - Pour les questions "open" (réponse libre), NE PAS mettre "correctAnswer" — la correction se fera séparément par analyse sémantique de la réponse de l'élève.
-- Mélange des questions de difficultés variées dans l'examen.
 
 JSON attendu:
 {

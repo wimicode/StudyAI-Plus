@@ -3,6 +3,8 @@ import { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
+type Difficulty = 'easy' | 'medium' | 'hard' | 'mixed'
+
 export default function GenerateExamPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
@@ -10,6 +12,8 @@ export default function GenerateExamPage() {
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [questionCount, setQuestionCount] = useState(10)
+  const [difficulty, setDifficulty] = useState<Difficulty>('mixed')
   const [durationMinutes, setDurationMinutes] = useState(60)
   const [instructions, setInstructions] = useState('')
 
@@ -24,7 +28,7 @@ export default function GenerateExamPage() {
           'Content-Type': 'application/json',
           ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
         },
-        body: JSON.stringify({ exam: { durationMinutes, instructions } }),
+        body: JSON.stringify({ exam: { questionCount, difficulty, durationMinutes, instructions } }),
       })
       if (!res.ok) throw new Error(await res.text())
       router.push(`/dashboard/courses/${id}/exam`)
@@ -40,10 +44,26 @@ export default function GenerateExamPage() {
       <p className="text-ink-400 text-sm mb-8">Choisis les paramètres pour ce cours.</p>
 
       <div className="card space-y-4">
-        <div>
-          <label className="text-xs text-ink-400 mb-1 block">Durée (minutes)</label>
-          <input type="number" min={15} max={180} step={15} value={durationMinutes}
-            onChange={e => setDurationMinutes(Number(e.target.value))} className="input max-w-[140px]" />
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="text-xs text-ink-400 mb-1 block">Nb. questions</label>
+            <input type="number" min={3} max={40} value={questionCount}
+              onChange={e => setQuestionCount(Number(e.target.value))} className="input" />
+          </div>
+          <div>
+            <label className="text-xs text-ink-400 mb-1 block">Difficulté</label>
+            <select value={difficulty} onChange={e => setDifficulty(e.target.value as Difficulty)} className="input">
+              <option value="mixed">Mélangée</option>
+              <option value="easy">Facile</option>
+              <option value="medium">Moyenne</option>
+              <option value="hard">Difficile</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-ink-400 mb-1 block">Durée (min)</label>
+            <input type="number" min={15} max={180} step={15} value={durationMinutes}
+              onChange={e => setDurationMinutes(Number(e.target.value))} className="input" />
+          </div>
         </div>
         <div>
           <label className="text-xs text-ink-400 mb-1 block">Instructions facultatives</label>
